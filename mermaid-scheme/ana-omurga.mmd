@@ -1,0 +1,50 @@
+flowchart TD
+
+%% UI
+subgraph UI_SYSTEM["UI System (client)"]
+    a[ui clicks] --> c[hooked server command] --> b[send network packet]
+end
+
+%% HOST ENTRY
+subgraph HOST_ENTRY["Host Listener (entry)"]
+    b --> glnpak[gelen paket - enet]
+    glnpak --> pol[100hz polling]
+    pol --> decd[decoder]
+    decd --> cmd[command]
+end
+
+%% ENGINE
+subgraph ENGINE["Distributor Engine (host)"]
+    cmd --> d[distributor tick]
+    d --> p[process]
+    p --> jour[journal get]
+    jour --> ac[send all clients]
+end
+
+%% HOOK LAYER
+subgraph HOOK_SYSTEM["Hook System (host)"]
+    ac --> om[omega event bus]
+
+    om --> shs[hook system]
+    shs --> dac[id 100011]
+    dac --> ms[kalp atışını ayıkla] --> hs[filtered output]
+
+    shs --> da[id 3] --> hs
+end
+
+%% SEND DECISION
+subgraph SENDER["Send Layer (host)"]
+    hs --> sbg[send dispatcher]
+    sbg --> hst{host mu?}
+    hst -->|evet| local[local api send]
+    hst -->|hayır| net[network send]
+end
+
+%% CLIENT
+subgraph CLIENT["Client Listener"]
+    net --> gdsln[gelen paket - enet]
+    gdsln --> asdl[100hz polling]
+    asdl --> par[decoder]
+    par --> ops[operation list]
+    ops --> exec[for op -> send omega]
+end
