@@ -1,4 +1,4 @@
-import json, time, traceback, sys
+import time, traceback, sys
 from . import ev, network_client
 from threading import Thread
 from s4online.utils import Logger, show_notification, load_pyd
@@ -7,7 +7,7 @@ from s4online.base import Ctx
 log = Logger(__name__)
 
 enet = load_pyd("enet", "enet.cp37-win_amd64.pyd")
-
+rapid = load_pyd("rapidjson", "rapidjson.cp37-win_amd64.pyd")
 
 class Listener:
     """
@@ -52,7 +52,7 @@ class Listener:
                 try:
                     if data.type == enet.EVENT_TYPE_RECEIVE:
                         log.debug("veri geldi")
-                        obj = json.loads(data.packet.data.decode("latin1"))
+                        obj = rapid.loads(data.packet.data.decode("latin1"))
                         if obj.get("type") == "auth":
                             self.server.accept_thread(
                                 data.peer,
@@ -145,7 +145,7 @@ class NetworkServer:
         # False: ya travel esnasında yada oyun hiç açılmadı
 
         message = {"pattern": {"type": "omega"}, "data": {"game_load": True}}
-        data = json.dumps(message, separators=(",", ":"), default=str).encode("latin1")
+        data = rapid.dumps(message, default=str).encode("latin1")
         packet = enet.Packet(data, enet.PACKET_FLAG_RELIABLE)
         self.peer.send(0, packet)
 
@@ -159,7 +159,7 @@ class NetworkServer:
             "account_name": self.account_name,
             "reconnect": reconnect,
         }
-        data = json.dumps(auth_payload, separators=(",", ":"), default=str).encode("latin1")
+        data = rapid.dumps(auth_payload, default=str).encode("latin1")
         packet = enet.Packet(data, enet.PACKET_FLAG_RELIABLE)
         self.peer.send(0, packet)
         
@@ -269,7 +269,7 @@ class NetworkServer:
                 log.warning("peer yok; veri gönderilemedi")
                 return
             
-            payload = json.dumps(message, separators=(",", ":"), default=str).encode("latin1")
+            payload = rapid.dumps(message, default=str).encode("latin1")
             packet = enet.Packet(payload, enet.PACKET_FLAG_RELIABLE)
             self.peer.send(0, packet)
         else:

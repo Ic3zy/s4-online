@@ -20,7 +20,7 @@ is_client = Config.is_client
  
 from s4online.utils import load_pyd
 
-rapid = load_pyd("rapid", "rapidjson.cp37-win_amd64.pyd")
+rapid = load_pyd("rapidjson", "rapidjson.cp37-win_amd64.pyd")
 
 
 def inject_all(is_client, b) -> bool:

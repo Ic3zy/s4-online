@@ -3,9 +3,8 @@
 # bağlanan kişiler için oluşturulacak ve tutulacak.
 from s4online.utils import Logger, load_pyd
 from s4online.base import TransactionQueue
-import json
 enet = load_pyd("enet", "enet.cp37-win_amd64.pyd")
-
+rapid = load_pyd("rapidjson", "rapidjson.cp37-win_amd64.pyd")
 log = Logger(__name__)
 
 class Network_client:
@@ -41,7 +40,7 @@ class Network_client:
             log.info(f"Sending message, while")
             try:
                 if isinstance(msg, dict):
-                    payload = json.dumps(msg, separators=(",", ":"), default=str)
+                    payload = rapid.dumps(msg, default=str)
                 else:
                     payload = str(msg)
                 encoded = payload.encode("latin1")
