@@ -86,6 +86,9 @@ def start(a: bool = False, b: bool = False, _connection=None):
         log.error(traceback.format_exc())
 
 
+start()
+
+
 @Command("alive", command_type=CommandType.Live)
 def alive(_connection=None):
     output = CheatOutput(_connection)

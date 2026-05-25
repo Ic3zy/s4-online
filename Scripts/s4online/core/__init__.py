@@ -4,8 +4,7 @@ from .custom_omega.omega_host import Omega_host
 from .custom_omega.omega_starter import inject_omega, uninject_omega
 from .client import setup_client
 from .start_service import inject_distributor, uninject_distributor
-
-
+from .distributor_service import *
 
 __all__ = [
     "DistributorNew",

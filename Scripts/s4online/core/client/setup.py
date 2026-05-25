@@ -23,12 +23,14 @@ def setup_client(account_id, client_id, account_name, distributor=None):
         log.info(f"created account: {account_id} ::: {account_name}")
 
         # create client via official client_manager method (matches SimSync's clean approach)
-        test_client = client_manager.create_client(client_id, account, local_client.household_id)
+        test_client = client_manager.create_client(
+            client_id, account, local_client.household_id
+        )
 
         log.info(f"created client: {client_id}")
 
         # ilk client daha yüklenmedi,
-        # yüklendiği zaman bize yine bir call geliyor ve orada atıyoruz. 
+        # yüklendiği zaman bize yine bir call geliyor ve orada atıyoruz.
         # try:
         #     for sim_info in local_client._selectable_sims:
         #         test_client._selectable_sims.add_selectable_sim_info(sim_info)
@@ -42,7 +44,7 @@ def setup_client(account_id, client_id, account_name, distributor=None):
         except Exception as e:
             log.error(f"Distributor add client error: {e}")
 
-        first_sim = next(iter(local_client._selectable_sims), None)
+        # first_sim = next(iter(local_client._selectable_sims), None)
         # set active sim
         # if not getattr(test_client, "active_sim", None):
         #     if first_sim is not None:
@@ -75,6 +77,7 @@ def is_local_client(client):
 
     return False
 
+
 def sync_remote_client(remote_client, local_client, target_sim):
     """Tek bir uzak istemciyi yerel istemcinin seçilebilir sim'leri ile senkronize eder."""
     try:
@@ -84,7 +87,7 @@ def sync_remote_client(remote_client, local_client, target_sim):
         # Yerel istemcideki tüm seçilebilir sim'leri uzak istemciye kopyala
         for sim_info in local_client._selectable_sims:
             remote_client._selectable_sims.add_selectable_sim_info(sim_info)
-            
+
     except Exception as e:
         log.error(f"Uzak istemci senkronizasyon hatası ({remote_client}): {e}")
 
@@ -114,7 +117,9 @@ def setup_sim():
                 continue
 
             # Senkronizasyon işini alt fonksiyona pasla
-            sync_remote_client(remote_client=client, local_client=local_client, target_sim=first_sim)
+            sync_remote_client(
+                remote_client=client, local_client=local_client, target_sim=first_sim
+            )
 
     except Exception as e:
         log.error(f"setup_sim genel hatası: {e}")

@@ -31,16 +31,13 @@ def show_notification(text):
             return False
 
         dialog = UiDialogNotification.TunableFactory().default(
-            sim,
-            title=lambda *_, **__: LocalizationHelperTuning.get_raw_text(text)
+            sim, title=lambda *_, **__: LocalizationHelperTuning.get_raw_text(text)
         )
 
         msg = build_dialog_msg(dialog)
 
         omega.send(
-            client.id,
-            Consts_pb2.MSG_OBJECTS_VIEW_UPDATE,
-            msg.SerializeToString()
+            client.id, Consts_pb2.MSG_OBJECTS_VIEW_UPDATE, msg.SerializeToString()
         )
 
         return True

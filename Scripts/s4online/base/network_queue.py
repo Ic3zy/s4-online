@@ -13,7 +13,7 @@ class TransactionQueue:
             if pattern is None:
                 return False
 
-            types = item.get("type")
+            types = pattern.get("type")
             if types is None:
                 return False
 

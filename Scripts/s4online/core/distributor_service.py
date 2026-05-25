@@ -3,8 +3,8 @@ import distributor.system
 from .system import DistributorNew
 from s4online.base import Ctx
 
-def start(self) -> None:
 
+def start(*a) -> None:
     import animation.arb
 
     animation.arb.set_tag_functions(

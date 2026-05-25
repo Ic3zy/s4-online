@@ -5,7 +5,7 @@ from s4online.utils import Logger, Config
 from s4online.networking import network_server
 
 log = Logger(__name__)
-logger = sims4.log.Logger("LiveDragCommands", default_owner="rmccord")
+logger = log
 
 # TODO: refact this file
 

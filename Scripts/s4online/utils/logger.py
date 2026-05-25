@@ -8,6 +8,8 @@ class Logger:
         self.log_name = log_name
 
     def write_log(self, message, log_type="log"):
+        # print(f"- [{self.log_name}] : {message}")
+        # return
         file_path = os.path.join(self.logger_directory, f"{log_type}.log")
         with open(file_path, "a") as f:
             f.write(f"- [{self.log_name}] : {message}\n")
@@ -23,7 +25,7 @@ class Logger:
 
         if no_traceback:
             return
-        
+
         import traceback
 
         self.error(traceback.format_exc(), no_traceback=True)

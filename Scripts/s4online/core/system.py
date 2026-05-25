@@ -15,9 +15,10 @@ _send_index = 0
 
 
 def get_omega_ref():
-    # Önbelleğe (cache) kaydetmiyoruz! 
+    # Önbelleğe (cache) kaydetmiyoruz!
     # Başka yer burayı güncellerse, her çağrıldığında en güncel referansı sys'tan çeker.
-    return Ctx.get('omega_ref')
+    return Ctx.get("omega_ref")
+
 
 class DistributorNew:
     def __init__(self):
@@ -28,7 +29,6 @@ class DistributorNew:
         self.is_client = Config.is_client
         log.info("distributor oluşturuldu")
         # self.setup()
-
 
     # hot install kodu, şu anki akışımızda bu koda ihtiyacımız yok.
     def setup(self):
@@ -72,17 +72,16 @@ class DistributorNew:
         return distributor.system._distributor_instance
 
     def add_object(self, obj):
-        
+
         if not services.client_manager():
             return
         obj.visible_to_client = True
-        
+
         op = obj.get_create_op()
-        
+
         if op is None:
             obj.visible_to_client = False
             return
-        
 
         self.journal.add(obj, op, ignore_deferral=True)
         self._pending_creates.add(obj)
@@ -109,21 +108,25 @@ class DistributorNew:
 
         if account_name is None:
             persona_name = None
-            if hasattr(client, "_account") and hasattr(client._account, "_persona_name"):
+            if hasattr(client, "_account") and hasattr(
+                client._account, "_persona_name"
+            ):
                 persona_name = client._account._persona_name
             if persona_name is None:
-                persona_name = "guest_" +  random.randint(1, 90000)
+                persona_name = "guest_" + random.randint(1, 90000)
             account_name = persona_name
 
         new_dist = distributor.system.Distributor()
         self.distributors.append(new_dist)
         new_dist.add_client(client)
         new_dist.account_name = account_name
-        
+
         self._add_ops_for_client_connect(client)
 
     def _add_ops_for_client_connect(self, client):
         node_gen = client.get_objects_in_view_gen()
+        if node_gen is None:
+            return
         parents_gen_fn = lambda obj: obj.get_create_after_objs()
         create_order = topological_sort(node_gen, parents_gen_fn)
         for obj in create_order:
@@ -172,7 +175,7 @@ class DistributorNew:
         global _send_index
         journal_seed = self.journal._build_journal_seed(op, None, None)
         journal_entry = self.journal._build_journal_entry(journal_seed)
-        (obj_id, operation, payload_type, manager_id, obj_name) = journal_entry
+        obj_id, operation, payload_type, manager_id, obj_name = journal_entry
         view_update = protocols.ViewUpdate()
         entry = view_update.entries.add()
         entry.primary_channel.id.manager_id = manager_id
@@ -221,7 +224,6 @@ class DistributorNew:
             self.process_events()
             self.process_all_client()
             self._send_view_updates()
-
 
     def process_events(self):
         try:
@@ -282,15 +284,16 @@ class DistributorNew:
                 )
         if view_update is not None:
             if client != "all" and client is not None:
-                client.send_message(MSG_OBJECTS_VIEW_UPDATE, view_update, global_distributor=False)
+                client.send_message(
+                    MSG_OBJECTS_VIEW_UPDATE, view_update, global_distributor=False
+                )
             elif client == "all":
                 self.send_message_all_clients(MSG_OBJECTS_VIEW_UPDATE, view_update)
 
     def send_message_all_clients(self, msg_id, msg):
         for dist in self.distributors:
             try:
-
-                dist.client.send_message(msg_id, msg,  global_distributor=True)
+                dist.client.send_message(msg_id, msg, global_distributor=True)
             except Exception as e:
                 log.error(f"send_message_all_clients error: {e}")
                 import traceback
@@ -308,7 +311,7 @@ class DistributorNew:
             if dist.account_name == name:
                 return dist
         log.warning("account name ile dist alınamadı")
-        
+
         if default == "self":
             return self
 

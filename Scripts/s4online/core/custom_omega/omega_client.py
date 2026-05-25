@@ -1,5 +1,6 @@
 import threading, time, omega, _omega
 from s4online.utils import Logger, Config
+import time
 
 log = Logger(__name__)
 
@@ -12,6 +13,7 @@ def set_first_client():
     global _first_client_id
     try:
         import services
+
         if services is None or hasattr(services, "client_manager") is False:
             return None
         first = services.client_manager().get_first_client()
@@ -23,6 +25,7 @@ def set_first_client():
             log.warning("first client not found")
     except Exception as e:
         log.error(f"set_first_client error: {e}")
+
 
 class Omega_client:
     def __init__(self):
@@ -69,6 +72,12 @@ class Omega_client:
                 {"msg_id": e["msg_id"], "msg": e["msg"].encode("latin1")}
                 for e in data.get("data", [])
             ]
+            pattern = data.get("pattern")
+            if pattern is not None:
+                times = data.get("time")
+                if times is not None:
+                    log.debug(f"pattern: {pattern} times: {times - time.time()}")
+
         except Exception as e:
             log.error(f"Add msg parse error: {e}")
             return

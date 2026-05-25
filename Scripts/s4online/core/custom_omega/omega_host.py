@@ -1,6 +1,7 @@
 import threading, time, omega, _omega
 from s4online.utils import Logger
 from s4online.base import Ctx
+import time
 
 log = Logger(__name__)
 Thread = threading.Thread
@@ -24,7 +25,6 @@ class Omega_host:
         log.log("omega kuruldu")
 
     def custom_omega(self, client_id, msg_id, msg_bytes, global_distributor=False):
-
         # Host'taki kendi local client
         # Oyuncu clientleri 100000 üzerinde oluyor
         if client_id < 100000:
@@ -43,16 +43,22 @@ class Omega_host:
             return
 
         with self.outgoing_lock:
-            chunk = {
-                "msg_id": msg_id,
-                "msg": msg_bytes.decode("latin1"),
-            }
+            try:
+                chunk = {
+                    "msg_id": msg_id,
+                    "msg": msg_bytes.decode("latin1"),
+                }
 
-            if isinstance(self.outgoing.get(client_id), dict):
-                self.outgoing[client_id]["data"].append(chunk)
-                return
+                if isinstance(self.outgoing.get(client_id), dict):
+                    self.outgoing[client_id]["data"].append(chunk)
+                    return
 
-            self.outgoing[client_id] = {"pattern": {"type": "omega"}, "data": [chunk]}
+                self.outgoing[client_id] = {
+                    "pattern": {"type": "omega", "time": time.time()},
+                    "data": [chunk],
+                }
+            except Exception as e:
+                log.error(f"custom_omega error: {e}")
 
     def send_outgoing_list(self):
         if len(self.enetServer) == 0:
@@ -86,7 +92,10 @@ class Omega_host:
                 log.debug(f"tick avarage: {elapsed}")
                 tick_count = 1
             else:
-                self.on_tick()
+                try:
+                    self.on_tick()
+                except Exception as e:
+                    log.error(f"on_tick error: {e}")
 
             time.sleep(self.tick_interval)
 
