@@ -4,10 +4,12 @@ from threading import Thread
 from s4online.utils import Logger, show_notification, load_pyd
 from s4online.core import setup_client
 from s4online.base import Ctx
+
 log = Logger(__name__)
 
 enet = load_pyd("enet", "enet.cp37-win_amd64.pyd")
 rapid = load_pyd("rapidjson", "rapidjson.cp37-win_amd64.pyd")
+
 
 class Listener:
     """
@@ -99,9 +101,9 @@ class NetworkServer:
             ev.EV_LIST.clear()
 
         self.net_tick = 40
-        self.current_host = None  
-        self.peer = None  
-        self.clients = dict()  
+        self.current_host = None
+        self.peer = None
+        self.clients = dict()
 
         if is_client:
             log.log("SERVER CLİENT OLARAK KURULUYOR")
@@ -114,7 +116,7 @@ class NetworkServer:
             self.create_server_socket()
 
         self.listener = Listener(self)
-        
+
     def __len__(self):
         return len(self.clients)
 
@@ -128,7 +130,6 @@ class NetworkServer:
         n_client = network_client.Network_client(g_client, account_name)
         self.add_client(n_client)
         return n_client
-
 
     def on_tick(self):
         try:
@@ -153,7 +154,7 @@ class NetworkServer:
         if self.peer is None:
             log.error("Peer bağlı değil, auth gönderilemedi.")
             return
-            
+
         auth_payload = {
             "type": "auth",
             "account_name": self.account_name,
@@ -162,14 +163,14 @@ class NetworkServer:
         data = rapid.dumps(auth_payload, default=str).encode("latin1")
         packet = enet.Packet(data, enet.PACKET_FLAG_RELIABLE)
         self.peer.send(0, packet)
-        
+
         # Auth paketinin kuyrukta beklemeden hemen gitmesini sağla
         self.flush()
 
     # ----- CLIENT -----
     def create_client_socket(self, re_connect=False):
         client = enet.Host(None, 1, 1, 0, 0)
-        self.current_host = client  
+        self.current_host = client
 
         address = enet.Address(self.host, self.port)
         peer = client.connect(address, 1)
@@ -181,7 +182,7 @@ class NetworkServer:
                 break
 
         return client
-    
+
     def flush(self):
         if self.current_host is None:
             return
@@ -193,9 +194,10 @@ class NetworkServer:
         server = enet.Host(address, 32, 1, 0, 0)
         self.current_host = server
         return server
-    
+
     def distributor_get_game_client(self, name):
         import distributor.system
+
         _distributor_instance = distributor.system._distributor_instance
 
         client = _distributor_instance.get_client_by_account_name(name, default=None)
@@ -216,13 +218,15 @@ class NetworkServer:
     def accept_thread(self, peer, name, reconnect=False):
         log.info("accept func")
         if reconnect is False:
-            show_notification(f"Yeni bir kullanıcı bağlanıyor...\nKullanıcı adı: {name}")
+            show_notification(
+                f"Yeni bir kullanıcı bağlanıyor...\nKullanıcı adı: {name}"
+            )
 
             n_client = self.get_n_client_by_name(name)
             if n_client is None:
                 show_notification(f"{name} geçerli bir oyuncu değil.")
                 return
-            
+
             n_client.set_peer(peer)
             g_client = n_client._g_client
 
@@ -268,7 +272,7 @@ class NetworkServer:
             if self.peer is None:
                 log.warning("peer yok; veri gönderilemedi")
                 return
-            
+
             payload = rapid.dumps(message, default=str).encode("latin1")
             packet = enet.Packet(payload, enet.PACKET_FLAG_RELIABLE)
             self.peer.send(0, packet)
@@ -286,14 +290,14 @@ class NetworkServer:
         for cid, client in self.clients.items():
             if client.account_name == account_name:
                 return client["peer"]
-        return None  
+        return None
 
     # ----- CLIENTE ÖZEL MESAJ -----
     def send_messsage_by_account_name(self, message, account_name):
         client = self.get_client_by_account_name(account_name)
         if client is None:
             return log.warning("tcp: client bulunamadı")
-        
+
         # message doğrudan send_message_by_client fonksiyonuna güvenle iletiliyor
         if self.send_message_by_client(message, client) is False:
             return log.warning("tcp: mesaj gönderilemedi")
@@ -301,10 +305,8 @@ class NetworkServer:
     def send_message_by_client(self, message, n_client):
         try:
             # Gelen veri dict ise otomatik json string'e dönüştürerek hata olasılığını sıfırla
-
-
             n_client.send_message(message)
-            
+
             # Gönderilen tekil mesajı anında ilet
             self.flush()
 

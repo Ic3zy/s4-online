@@ -3,9 +3,11 @@
 # bağlanan kişiler için oluşturulacak ve tutulacak.
 from s4online.utils import Logger, load_pyd
 from s4online.base import TransactionQueue
+
 enet = load_pyd("enet", "enet.cp37-win_amd64.pyd")
 rapid = load_pyd("rapidjson", "rapidjson.cp37-win_amd64.pyd")
 log = Logger(__name__)
+
 
 class Network_client:
     def __init__(self, g_client, account_name):
@@ -46,15 +48,17 @@ class Network_client:
                 encoded = payload.encode("latin1")
                 data = enet.Packet(encoded, enet.PACKET_FLAG_RELIABLE)
                 # ENet'e gönderim yapıyoruz
-                # enet.peer.send genellikle paket kopyalandığında hata vermez 
+                # enet.peer.send genellikle paket kopyalandığında hata vermez
                 # ama peer koptuysa veya buffer doluysa exception atabilir.
                 self.peer.send(0, data)
-                
+
                 # Buraya geldiysek gönderim başarılı (veya kuyruğa alındı)
                 self._queue.confirm_success()
-                
+
             except Exception as e:
                 # Gönderim başarısız! confirm_success() ÇAĞRILMADI.
                 # Paket hala kuyruğun başında bekliyor.
-                log.error(f"Gönderim hatası ({self.account_name}), paket saklanıyor: {e}")
-                break # Döngüyü kır, bir sonraki tick'te tekrar dene.
+                log.error(
+                    f"Gönderim hatası ({self.account_name}), paket saklanıyor: {e}"
+                )
+                break  # Döngüyü kır, bir sonraki tick'te tekrar dene.

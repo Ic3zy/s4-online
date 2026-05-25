@@ -1,29 +1,32 @@
 from collections import deque
-from threading import RLock # Standart Lock yerine RLock kullandık!
+from threading import RLock  # Standart Lock yerine RLock kullandık!
+
 
 class TransactionQueue:
     def __init__(self):
         self._items = deque()
-        self._lock = RLock() # Deadlock'ı önlemek için kesinlikle RLock olmalı
+        self._lock = RLock()  # Deadlock'ı önlemek için kesinlikle RLock olmalı
 
     def is_valid_item(self, item):
         if isinstance(item, dict):
             pattern = item.get("pattern")
             if pattern is None:
                 return False
-            
+
             types = item.get("type")
             if types is None:
                 return False
-            
+
             if "data" in item and isinstance(item["data"], list):
                 return True
-            
+
         return False
-    
+
     def type_check(self, item1, item2):
+        if item1.get("type") is None or item2.get("type") is None:
+            return False
         return item1.get("type") == item2.get("type")
-    
+
     def put(self, item):
         with self._lock:
             if not self.is_valid_item(item):
@@ -52,9 +55,10 @@ class TransactionQueue:
                 self._items.popleft()
 
     def queue_merge(self):
-        """Kuyruktaki tüm paketlerin 'data' listelerini güvenli bir şekilde 
+        """Kuyruktaki tüm paketlerin 'data' listelerini güvenli bir şekilde
         ilk paketin 'data' listesinde birleştirir.
         """
+        pass
         # with self._lock:
         #     if len(self._items) <= 1:
         #         # Kuyrukta 0 veya 1 eleman varsa birleştirmeye gerek yok
@@ -62,11 +66,11 @@ class TransactionQueue:
 
         #     # 1. İlk paketi (referans) kuyruktan tamamen çıkarıyoruz
         #     referance = self._items.popleft()
-            
+
         #     # 2. Kuyrukta kalan diğer tüm paketleri sırayla eritiyoruz
         #     while len(self._items) > 0:
         #         sonraki_paket = self._items.popleft()
-                
+
         #         # Sadece içindeki 'data' listesinin elemanlarını çekip ekliyoruz!
         #         # Paket objesinin kendisini değil, içindeki mesaj listesini birleştiriyoruz.
         #         if "data" in sonraki_paket and isinstance(sonraki_paket["data"], list):
@@ -77,7 +81,7 @@ class TransactionQueue:
 
         #     # 3. Birleştirilmiş dev paketi kuyruğun en önüne geri koyuyoruz
         #     self._items.appendleft(referance)
-            
+
     def __len__(self):
         with self._lock:
             return len(self._items)

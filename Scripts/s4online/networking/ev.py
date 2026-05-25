@@ -16,11 +16,11 @@ def emit(event_type, message, output) -> bool:
             pattern = ev.get("pattern")
             if pattern is None:
                 continue
-            
+
             evType = pattern.get("type")
             if event_type != evType:
                 continue
-            
+
             output("func bulundu çağırılacak.")
             func = ev["func"]
             try:
@@ -28,6 +28,7 @@ def emit(event_type, message, output) -> bool:
             except Exception as e:
                 log.error(f"func içi hata: {e}")
                 import traceback
+
                 log.error(traceback.format_exc())
 
         return True

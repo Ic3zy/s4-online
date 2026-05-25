@@ -1,22 +1,22 @@
 import threading, time, omega, _omega
 from s4online.utils import Logger
 from s4online.base import Ctx
+from s4online.networking import NetworkServer
+
 log = Logger(__name__)
 Thread = threading.Thread
 MAX_CHUNK = 128
 
 
 class Omega_host:
-    def __init__(self, enetServer=None):
-        if enetServer is None:
-            raise Exception("enetServer is None")
+    def __init__(self, enetServer: NetworkServer):
         log.info("omega kurulacak...")
         self.enetServer = enetServer
-        self.outgoing = []
+        self.outgoing = {}
         self.outgoing_lock = threading.Lock()
         self.runing = True
         # 15 Hz tick
-        self.tick_rate = 5
+        self.tick_rate = 15
         self.tick_interval = 1 / self.tick_rate
         self.min_sleep_time = 0.001  # cpu korumak için maksimum 1000 hz
         omega.send = self.custom_omega
@@ -31,7 +31,7 @@ class Omega_host:
         if client_id < 100000:
             _omega.send(client_id, msg_id, msg_bytes)
 
-            if Ctx.get('game_load') or global_distributor:
+            if Ctx.get("game_load") or global_distributor:
                 return
             else:
                 client_id = "all"
@@ -44,8 +44,16 @@ class Omega_host:
             return
 
         with self.outgoing_lock:
-            self.outgoing.append({"client_id": client_id, "msg_id": msg_id, "msg": msg_bytes.decode("latin1")})
+            chunk = {
+                "msg_id": msg_id,
+                "msg": msg_bytes.decode("latin1"),
+            }
 
+            if isinstance(self.outgoing.get(client_id), dict):
+                self.outgoing[client_id]["data"].append(chunk)
+                return
+
+            self.outgoing[client_id] = {"pattern": {"type": "omega"}, "data": [chunk]}
 
     def send_outgoing_list(self):
         if len(self.enetServer) == 0:
@@ -53,23 +61,17 @@ class Omega_host:
             return
         with self.outgoing_lock:
             outgoing = self.outgoing
-            self.outgoing = []
+            self.outgoing = {}
 
         if not outgoing:
             return
 
         # chunking
-        for chunk in outgoing:
-            client_id = chunk["client_id"]
-            if client_id is None:
-                log.error("client id is none")
-                continue
-            
-            data = {"pattern": {"type": "omega"}, "data": [chunk]}
+        for client_id, outgoing_list in outgoing.items():
             if client_id == "all":
-                self.enetServer.send_message_all_clients(data)
+                self.enetServer.send_message_all_clients(outgoing_list)
             else:
-                self.enetServer.send_message_from_client_id(client_id, data)
+                self.enetServer.send_message_from_client_id(client_id, outgoing_list)
 
     def on_tick(self):
         self.send_outgoing_list()

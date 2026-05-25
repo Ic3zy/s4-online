@@ -15,10 +15,11 @@ from s4online.core import (
 from s4online.patch import inject, inject_time, uninject, uninject_time
 from s4online.utils import Config, Logger, show_notification
 from sims4.commands import CheatOutput, Command, CommandType, unregister
+from s4online.utils import load_pyd
+
 log = Logger(__name__)
 is_client = Config.is_client
- 
-from s4online.utils import load_pyd
+
 
 rapid = load_pyd("rapidjson", "rapidjson.cp37-win_amd64.pyd")
 
@@ -84,11 +85,13 @@ def start(a: bool = False, b: bool = False, _connection=None):
 
         log.error(traceback.format_exc())
 
+
 @Command("alive", command_type=CommandType.Live)
 def alive(_connection=None):
     output = CheatOutput(_connection)
     output("I'm alive")
     output(f"connection: {_connection}")
     import services
+
     clients_count = services.client_manager()._objects
     output(f"clients: {clients_count}")
