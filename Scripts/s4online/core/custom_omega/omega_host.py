@@ -1,7 +1,6 @@
 import threading, time, omega, _omega
 from s4online.utils import Logger
 from s4online.base import Ctx
-from s4online.networking import NetworkServer
 
 log = Logger(__name__)
 Thread = threading.Thread
@@ -9,7 +8,7 @@ MAX_CHUNK = 128
 
 
 class Omega_host:
-    def __init__(self, enetServer: NetworkServer):
+    def __init__(self, enetServer):
         log.info("omega kurulacak...")
         self.enetServer = enetServer
         self.outgoing = {}
