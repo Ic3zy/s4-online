@@ -14,6 +14,7 @@ def load_pyd(moduleName, fileName):
 
     base = os.path.dirname(os.path.abspath(__file__))
     pyd_path = os.path.join(os.path.dirname(base), "C_Pyd_Locale", fileName)
+    # pyd_path = os.path.join(os.path.dirname(base), "C_Pyd", fileName)
 
     log.info(f"pyd_path: {pyd_path}")
 

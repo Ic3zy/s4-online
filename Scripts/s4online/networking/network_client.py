@@ -3,6 +3,7 @@
 # bağlanan kişiler için oluşturulacak ve tutulacak.
 from s4online.utils import Logger, load_pyd
 from s4online.base import TransactionQueue
+import time
 
 enet = load_pyd("enet", "enet.cp37-win_amd64.pyd")
 rapid = load_pyd("rapidjson", "rapidjson.cp37-win_amd64.pyd")
@@ -24,7 +25,7 @@ class Network_client:
         log.info("calling sendmessage")
         self._queue.put(msg)
 
-    def process_queue(self):
+    def process(self):
         """Ağ thread'i tarafından çağrılır."""
         if self.peer is None:
             return
@@ -34,13 +35,16 @@ class Network_client:
                 self._queue.queue_merge()
             except Exception as e:
                 log.error(f"Queue merge error: {e}")
-        # Kuyruk boşalana kadar veya bir hata alana kadar devam et
-        while True:
+
+        # Tek callda en fazla 10 paket gitmeli.
+        for _ in range(10):
             msg = self._queue.get_next()
             if msg is None:
                 break
+
             log.info(f"Sending message, while")
             try:
+                msg["pattern"]["times"] = time.time()
                 if isinstance(msg, dict):
                     payload = rapid.dumps(msg, default=str)
                 else:

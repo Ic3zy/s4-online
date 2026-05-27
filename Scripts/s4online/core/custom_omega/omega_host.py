@@ -49,16 +49,25 @@ class Omega_host:
                     "msg": msg_bytes.decode("latin1"),
                 }
 
-                if isinstance(self.outgoing.get(client_id), dict):
-                    self.outgoing[client_id]["data"].append(chunk)
-                    return
+                # if isinstance(self.outgoing.get(client_id), dict):
+                #     self.outgoing[client_id]["data"].append(chunk)
+                #     return
 
-                self.outgoing[client_id] = {
+                msg = {
                     "pattern": {"type": "omega", "time": time.time()},
                     "data": [chunk],
                 }
+                self.send_message(msg, client_id)
             except Exception as e:
                 log.error(f"custom_omega error: {e}")
+
+    def send_message(self, message, client_id):
+        if client_id == "all":
+            self.enetServer.send_message_all_clients(message)
+        else:
+            self.enetServer.send_message_from_client_id(client_id, message)
+
+        # self.enetServer.on_tick()
 
     def send_outgoing_list(self):
         if len(self.enetServer) == 0:

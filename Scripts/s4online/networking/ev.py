@@ -1,37 +1,45 @@
 from s4online.utils import Logger
 
-EV_LIST = list()
-
 log = Logger(__name__)
 
 
-def on(pattern, func) -> None:
-    EV_LIST.append({"pattern": pattern, "func": func})
+class Ev:
+    EV_MAP = {}
+
+    def on(self, pattern, func) -> None:
+        event_type = pattern.get("type")
+        if event_type is None:
+            return
+
+        if event_type not in self.EV_MAP:
+            self.EV_MAP[event_type] = []
+
+        self.EV_MAP[event_type].append(func)
+
+    def emit(self, event_type, message, output) -> bool:
+        try:
+            funcs = self.EV_MAP.get(event_type, [])
+
+            log.info(f"Emit başlatılıyor.. funcs={funcs}")
+
+            for func in funcs:
+                output("func bulundu çağırılacak.")
+
+                try:
+                    func(message)
+
+                except Exception as e:
+                    log.error(f"func içi hata: {e}")
+
+                    import traceback
+
+                    log.error(traceback.format_exc())
+
+            return True
+
+        except Exception as e:
+            log.error(f"emit hata: {e}")
+            return False
 
 
-def emit(event_type, message, output) -> bool:
-    try:
-        log.info(f"Emit başlatılıyor.. Json. {EV_LIST}")
-        for ev in EV_LIST:
-            pattern = ev.get("pattern")
-            if pattern is None:
-                continue
-
-            evType = pattern.get("type")
-            if event_type != evType:
-                continue
-
-            output("func bulundu çağırılacak.")
-            func = ev["func"]
-            try:
-                func(message)
-            except Exception as e:
-                log.error(f"func içi hata: {e}")
-                import traceback
-
-                log.error(traceback.format_exc())
-
-        return True
-    except Exception as e:
-        log.error(f"emit hata: {e}")
-        return False
+ev = Ev()

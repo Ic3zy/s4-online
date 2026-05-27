@@ -42,7 +42,7 @@ def process_queue(*a):
 
 def start_loop():
     global queue_loop
-    queue_loop = loopmod.Loop(process_queue, lambda: 0.2)  # 5 hz
+    queue_loop = loopmod.Loop(process_queue, lambda: 0.1)  # 10 hz
     queue_loop.start()
 
 

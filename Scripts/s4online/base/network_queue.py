@@ -1,5 +1,6 @@
 from collections import deque
 from threading import RLock  # Standart Lock yerine RLock kullandık!
+import time
 
 
 class TransactionQueue:
@@ -23,17 +24,22 @@ class TransactionQueue:
         return False
 
     def type_check(self, item1, item2):
-        if item1.get("type") is None or item2.get("type") is None:
+        item1_pattern = item1.get("pattern")
+        item2_pattern = item2.get("pattern")
+        if item1_pattern is None or item2_pattern is None:
             return False
-        return item1.get("type") == item2.get("type")
+        return item1_pattern.get("type") == item2_pattern.get("type")
 
     def put(self, item):
+        item["pattern"]["time_p"] = time.time()
         with self._lock:
             if not self.is_valid_item(item):
                 return
 
             if not self._items:
                 self._items.append(item)
+                item["pattern"]["time_p_e"] = time.time()
+
                 return
 
             last = self._items[-1]
@@ -42,12 +48,15 @@ class TransactionQueue:
                 last["data"].extend(item["data"])
             else:
                 self._items.append(item)
+        item["pattern"]["time_p_e"] = time.time()
 
     def get_next(self):
         with self._lock:
             if not self._items:
                 return None
-            return self._items[0]
+            item = self._items[0]
+            item["pattern"]["time_q_e"] = time.time()
+            return item
 
     def confirm_success(self):
         with self._lock:

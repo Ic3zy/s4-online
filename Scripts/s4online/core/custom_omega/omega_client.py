@@ -85,6 +85,7 @@ class Omega_client:
         if top_event:
             with self.incoming_lock:
                 self.incoming_commands.extend(top_event)
+        # self.omega_emitter()
 
     def on_tick(self):
         # self.omega_emitter()
