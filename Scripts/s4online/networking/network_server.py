@@ -39,7 +39,7 @@ class NetworkServer:
         self.lock = RLock()
 
         self.running = True
-        self.net_tick = 40
+        self.net_tick = 60
         self.current_host = None
         self.peer = None
         self.clients = dict()
@@ -65,7 +65,7 @@ class NetworkServer:
 
     def loop(self):
         while True:
-            print("tick")
+            # print("tick")
             self.on_tick()
 
     def on_tick(self):

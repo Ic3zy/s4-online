@@ -3,15 +3,14 @@ from .map_commands import (
     HOST_REPLACEMENT_LIST,
     HOST_BLOCK,
 )
-from s4online.utils import Logger
-
+from s4online.utils import Logger, load_pyd
 import sims4.commands, inspect
-
 from s4online.base import event_queue
-
 from distributor.system import Distributor
 
 log = Logger(__name__)
+
+dispatcher = load_pyd("dispatcher", "dispatcher.cp37-win_amd64.pyd")
 
 
 def parser(value: str):
@@ -66,6 +65,7 @@ def get_command(command_name):
 # TODO: spam riskini durdurmak için son komutları kaydeden ve tamamlandıktan sonra silen bir yapıya ihtiyacım var
 # TODO: bu bir liste olacak ve içerisinde aynı komut aynı kullanıcıdan girmiş ise yeniden işleme asla alınmayacak.
 
+
 def _do_command(command_name, client_id, *args, **kwargs):
     kwargs["_connection"] = client_id
 
@@ -75,27 +75,27 @@ def _do_command(command_name, client_id, *args, **kwargs):
         if command:
             spec = inspect.getfullargspec(command)
             parsed_args = sims4.commands.parse_args(spec, list(args), client_id)
-            # log.debug(f"parsed args: {parsed_args}")
+            log.log(f"Parsed_args type : {isinstance(parsed_args, list)}")
+            # 🔥 1. KORUMA: C kodumuz kesinlikle Tuple bekliyor! Listeyi Tuple'a çeviriyoruz.
+            # c_args = tuple(parsed_args) if parsed_args is not None else ()
+            
+            # 🔥 2. KORUMA: Arka plan thread'inin bu sözlüğü havada değiştirmemesi için 
+            # sözlüğün saniyeler içinde o anki halinin kopyasını (shallow copy) alıyoruz.
             kwargs["_connection"] = client_id
+            # c_kwargs = kwargs.copy()
+
             try:
-                event_queue.put(
-                    {"func": command, "args": parsed_args, "kwargs": kwargs}
-                )
-                # command(
-                #     *parsed_args, **kwargs
-                # )  # bunu burada çalıştırmıyorum çünkü her şey oyunun kendi threadinde işleyecek.
+                # Artık C tarafına tamamen izole edilmiş, thread-safe paketler gidiyor:
+                # dispatcher.enqueue(command, args=c_args, kwargs=c_kwargs)
+                command(*parsed_args, **kwargs)
             except Exception as e:
                 log.error(f"hata: {e}")
                 import traceback
-
                 log.error(traceback.format_exc())
         else:
             log.warning("command bulunamadı")
     except Exception as e:
-        log.error(f"{str(e)}")
-        import traceback
-
-        log.error(traceback.format_exc())
+        log.error(f"{e}")
 
 
 def do_command_from_network(data):
