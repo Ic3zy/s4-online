@@ -1,3 +1,4 @@
+from server_commands.sim_commands import set_active_sim
 import server.account, services, time
 from s4online.utils import Logger
 from server.client import Client
@@ -82,11 +83,11 @@ def sync_remote_client(remote_client, local_client, target_sim):
     """Tek bir uzak istemciyi yerel istemcinin seçilebilir sim'leri ile senkronize eder."""
     try:
         # Uzak istemcinin aktif sim'ini yerel sim ile eşitle
-        remote_client.set_active_sim_by_id(target_sim.sim_id)
-
         # Yerel istemcideki tüm seçilebilir sim'leri uzak istemciye kopyala
         for sim_info in local_client._selectable_sims:
             remote_client._selectable_sims.add_selectable_sim_info(sim_info)
+
+        set_active_sim(target_sim.sim_id, _connection=remote_client.id)
 
     except Exception as e:
         log.error(f"Uzak istemci senkronizasyon hatası ({remote_client}): {e}")

@@ -5,7 +5,6 @@ from .map_commands import (
 )
 from s4online.utils import Logger, load_pyd
 import sims4.commands, inspect
-from s4online.base import event_queue
 from distributor.system import Distributor
 
 log = Logger(__name__)
