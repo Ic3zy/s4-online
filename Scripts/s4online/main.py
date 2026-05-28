@@ -5,7 +5,6 @@
 # DOĞRU OLAN: Modülü direkt olarak import et
 from s4online import networking
 import distributor.system, services
-from s4online.base import start_loop, stop_loop
 from s4online.core import (
     inject_distributor,
     inject_omega,
@@ -38,8 +37,6 @@ def inject_all(is_client, b) -> bool:
     # inject_distributor(is_client)
     # commands inject
     inject(network_server, is_client)
-    # network loop start
-    start_loop()
     # inject_time(is_client)
     return True
 
