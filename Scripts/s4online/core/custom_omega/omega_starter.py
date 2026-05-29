@@ -5,8 +5,12 @@ from s4online.base import Ctx
 _omega_instance = None
 
 
-def ev_add_network_server():
-    network_instance = Ctx.get("network_instance")
+def ev_add_network_server(enetServer):
+    if enetServer is not None:
+        network_instance = enetServer
+    else:
+        network_instance = Ctx.get("network_instance")
+
     if network_instance is not None:
         omega_instance = Ctx.get("omega_ref")
         network_instance.ev.on({"type": "omega"}, omega_instance.add_msg)
@@ -17,7 +21,7 @@ def inject_omega(enetServer, is_client):
     _omega = None
     if is_client:
         _omega = Omega_client()
-        ev_add_network_server()
+        ev_add_network_server(enetServer)
         # network_instance = Ctx.get("network_instance")
         # enetServer.ev.on({"type": "omega"}, _omega.add_msg)
     else:
