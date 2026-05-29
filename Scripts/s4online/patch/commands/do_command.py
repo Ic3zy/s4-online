@@ -4,6 +4,7 @@ from .map_commands import (
     HOST_BLOCK,
 )
 from s4online.utils import Logger, load_pyd
+from s4online.base import Ctx
 import sims4.commands, inspect
 from distributor.system import Distributor
 
@@ -77,8 +78,8 @@ def _do_command(command_name, client_id, *args, **kwargs):
             log.log(f"Parsed_args type : {isinstance(parsed_args, list)}")
             # 🔥 1. KORUMA: C kodumuz kesinlikle Tuple bekliyor! Listeyi Tuple'a çeviriyoruz.
             # c_args = tuple(parsed_args) if parsed_args is not None else ()
-            
-            # 🔥 2. KORUMA: Arka plan thread'inin bu sözlüğü havada değiştirmemesi için 
+
+            # 🔥 2. KORUMA: Arka plan thread'inin bu sözlüğü havada değiştirmemesi için
             # sözlüğün saniyeler içinde o anki halinin kopyasını (shallow copy) alıyoruz.
             kwargs["_connection"] = client_id
             # c_kwargs = kwargs.copy()
@@ -90,6 +91,7 @@ def _do_command(command_name, client_id, *args, **kwargs):
             except Exception as e:
                 log.error(f"hata: {e}")
                 import traceback
+
                 log.error(traceback.format_exc())
         else:
             log.warning("command bulunamadı")
@@ -119,3 +121,15 @@ def do_command_from_network(data):
         import traceback
 
         log.error(traceback.format_exc())
+
+
+def add_network_server():
+    network_instance = Ctx.get("network_instance")
+    if network_instance is not None:
+        ev = network_instance.ev
+
+    if ev is not None:
+        ev.on({"type": "server_command"}, do_command_from_network)
+
+
+Ctx.add_callback("network_instance", add_network_server)

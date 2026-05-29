@@ -100,8 +100,8 @@ def inject(enet_Server, is_client):
             unregister(command_name)
             Command(command_name, command_type=CommandType.Live)(command)
 
-        enet_Server.ev.on({"type": "server_command"}, do_command_from_network)
-        enet_Server.ev.on({"type": "live_drag_end"}, live_drag_end_host_render)
+        # enet_Server.ev.on({"type": "server_command"}, do_command_from_network)
+        # enet_Server.ev.on({"type": "live_drag_end"}, live_drag_end_host_render)
 
 
 def uninject():
