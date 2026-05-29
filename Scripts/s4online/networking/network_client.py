@@ -22,7 +22,6 @@ class Network_client:
 
     def send_message(self, msg):
         """Oyun thread'i sadece bunu çağırır: Çok hızlı ve güvenli."""
-        log.info("calling sendmessage")
         self._queue.put(msg)
 
     def process(self):
@@ -42,7 +41,6 @@ class Network_client:
             if msg is None:
                 break
 
-            log.info(f"Sending message, while")
             try:
                 msg["pattern"]["times"] = time.time()
                 if isinstance(msg, dict):

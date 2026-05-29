@@ -72,20 +72,18 @@ class DistributorNew:
         return distributor.system._distributor_instance
 
     def add_object(self, obj):
-
+        obj.visible_to_client = True
+        if not obj.visible_to_client:
+            return
         if not services.client_manager():
             return
-        obj.visible_to_client = True
-
         op = obj.get_create_op()
-
         if op is None:
             obj.visible_to_client = False
             return
-
         self.journal.add(obj, op, ignore_deferral=True)
         self._pending_creates.add(obj)
-        if hasattr(obj, "on_add_to_client"):
+        if hasattr(obj, 'on_add_to_client'):
             obj.on_add_to_client()
 
     def remove_object(self, obj, **kwargs):

@@ -165,8 +165,6 @@ class NetworkServer:
             show_notification(f"{name} yeniden bağlandı.")
 
     def send_message_from_client_id(self, client_id: int, message: dict):
-        log.debug("send msg")
-
         client = self.clients.get(client_id)
         if client is None:
             log.error("client not found")
@@ -175,8 +173,6 @@ class NetworkServer:
         self.send_message_by_client(message, client)
 
     def send_message_all_clients(self, message: dict):
-        log.debug("send msg")
-
         if self.is_client:
             if message.get("account_name") is None:
                 message["account_name"] = self.account_name

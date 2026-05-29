@@ -2,5 +2,6 @@ compile_work
 .vscode
 test
 a.py
+*_test.py
 fake_sims4
 __pycache__

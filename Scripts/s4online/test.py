@@ -12,7 +12,6 @@ from s4online.networking import start as start_server
 from s4online.networking import stop as stop_server
 import distributor.system, services
 from distributor.system import Distributor
-from s4online.base import process_queue
 from server_commands.live_drag_commands import live_drag_end
 from server.live_drag_tuning import LiveDragLocation
 import sims4
@@ -37,7 +36,7 @@ is_client = Config.is_client
 def move_object_safe(obj_id, x: int = 0, y: int = 0, z: int = 0):
     obj = services.object_manager().get(obj_id)
     if obj is None:
-        print("Obje bulunamadı.")
+        log.error("Obje bulunamadı.")
         return
 
     pos = sims4.math.Vector3(429.303101, 150.000015, 349.150360)
