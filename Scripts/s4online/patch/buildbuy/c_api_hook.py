@@ -1,4 +1,5 @@
 import services, _buildbuy
+import sims4.reload
 from s4online.utils import Logger, Config
 from s4online.base import Ctx
 
@@ -104,11 +105,19 @@ class Buildbuy_obj:
 
 
 # HOOK
-originals = {
-    "add_object_to_buildbuy_system": _buildbuy.add_object_to_buildbuy_system,
-    "invalidate_object_location": _buildbuy.invalidate_object_location,
-    "is_location_outside": _buildbuy.is_location_outside,
-}
+
+# Hot-reload olarak bu kodu test edebilmek için reload protect kullanıyorum.
+# Kısaca açıklamak gerekirse burayı koymaz isem original referanslara erişimimi kaybederim.
+# Sadece test etmek ve geliştirmeyi hızlandırmak için kullandığım bir kısım yani
+with sims4.reload.protected(globals()):
+    originals = None
+
+if originals is None:
+    originals = {
+        "add_object_to_buildbuy_system": _buildbuy.add_object_to_buildbuy_system,
+        "invalidate_object_location": _buildbuy.invalidate_object_location,
+        "is_location_outside": _buildbuy.is_location_outside,
+    }
 
 
 def new_add_object_to_buildbuy_system(obj_id, zone_id):
