@@ -59,7 +59,7 @@ class Omega_client:
             log.info(f"Sending {len(events)} events to omega, client_id: {client_id}")
             for event in events:
                 try:
-                    ret = _omega.send(3, event["msg_id"], event["msg"])
+                    ret = _omega.send(_first_client_id, event["msg_id"], event["msg"])
                     log.debug(f"omega send result: {ret}")
                 except Exception as e:
                     log.error(f"Omega send error: {e}")
@@ -85,7 +85,7 @@ class Omega_client:
         if top_event:
             with self.incoming_lock:
                 self.incoming_commands.extend(top_event)
-        self.omega_emitter()
+        # self.omega_emitter()
 
     def on_tick(self):
         # self.omega_emitter()

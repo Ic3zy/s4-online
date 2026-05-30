@@ -42,24 +42,23 @@ class Omega_host:
         ):
             return
 
-        with self.outgoing_lock:
-            try:
-                chunk = {
-                    "msg_id": msg_id,
-                    "msg": msg_bytes.decode("latin1"),
-                }
+        try:
+            chunk = {
+                "msg_id": msg_id,
+                "msg": msg_bytes.decode("latin1"),
+            }
 
-                # if isinstance(self.outgoing.get(client_id), dict):
-                #     self.outgoing[client_id]["data"].append(chunk)
-                #     return
+            # if isinstance(self.outgoing.get(client_id), dict):
+            #     self.outgoing[client_id]["data"].append(chunk)
+            #     return
 
-                msg = {
-                    "pattern": {"type": "omega", "time": time.time()},
-                    "data": [chunk],
-                }
-                self.send_message(msg, client_id)
-            except Exception as e:
-                log.error(f"custom_omega error: {e}")
+            msg = {
+                "pattern": {"type": "omega", "time": time.time()},
+                "data": [chunk],
+            }
+            self.send_message(msg, client_id)
+        except Exception as e:
+            log.error(f"custom_omega error: {e}")
 
     def send_message(self, message, client_id):
         if client_id == "all":

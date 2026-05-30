@@ -83,7 +83,7 @@ class DistributorNew:
             return
         self.journal.add(obj, op, ignore_deferral=True)
         self._pending_creates.add(obj)
-        if hasattr(obj, 'on_add_to_client'):
+        if hasattr(obj, "on_add_to_client"):
             obj.on_add_to_client()
 
     def remove_object(self, obj, **kwargs):
@@ -119,7 +119,7 @@ class DistributorNew:
         new_dist.add_client(client)
         new_dist.account_name = account_name
 
-        self._add_ops_for_client_connect(client)
+        # self._add_ops_for_client_connect(client)
 
     def _add_ops_for_client_connect(self, client):
         node_gen = client.get_objects_in_view_gen()

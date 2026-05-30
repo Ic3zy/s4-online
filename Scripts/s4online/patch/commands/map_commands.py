@@ -127,11 +127,11 @@ COMMAND_LIST = {
 HOST_REPLACEMENT_LIST = {
     "interactions.has_choices": custom_has_choices,
     "interactions.choices": custom_generate_choices,
-    "live_drag.start": custom_live_drag_start,
-    # NOT working
-    # "live_drag.end": custom_live_drag_end,
-    "live_drag.canceled": custom_live_drag_canceled,
-    "live_drag.sell": custom_live_drag_sell,
+    # "live_drag.start": custom_live_drag_start,
+    # # NOT working
+    # # "live_drag.end": custom_live_drag_end,
+    # "live_drag.canceled": custom_live_drag_canceled,
+    # "live_drag.sell": custom_live_drag_sell,
 }
 CLIENT_REPLACEMENT_LIST = {
     "interactions.has_choices": custom_has_choices,

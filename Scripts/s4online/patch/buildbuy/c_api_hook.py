@@ -13,6 +13,7 @@ _objects_instance = None
 class Buildbuy_obj:
     def __init__(self):
         self.new_create = False
+        self.remove = False
         self.obj_id = 0
         self.zone_id = 0
         self.ok = False
@@ -41,7 +42,18 @@ class Buildbuy_obj:
 
         self.loc = obj.transform.orientation
         self.def_id = obj.definition.id
-        if self.loc is not None and self.def_id is not None:
+        surface_id = obj.routing_surface
+        if surface_id is None or hasattr(surface_id, "secondary_id") is False:
+            self.ok = False
+            return
+
+        self.obj_level = surface_id.secondary_id
+        if (
+            self.loc is not None
+            and self.def_id is not None
+            and self.obj_level is not None
+            and not Ctx.get("is_processing_network_bb_packet")
+        ):
             self.ok = True
 
         # Debug
@@ -49,15 +61,19 @@ class Buildbuy_obj:
 
     def end(self):
         if not self.ok:
-            return
+            return log.error("Buildbuy obj ok false")
+
+        log.debug(f"📡 [S4ONLINE_NET] Paket ağa gönderiliyor...")
 
         payload = {
             "pattern": {"type": "buildbuy"},
             "data": {
                 "new_create": self.new_create,
+                "remove": self.remove,
                 "obj_id": self.obj_id,
                 "zone_id": self.zone_id,
                 "def_id": self.def_id,
+                "obj_level": self.obj_level,
                 # Tuple formatına çeviriyoruz ki network dispatcher veya JSON serialize ederken sıkıntı çıkmasın
                 "pos": (
                     (self.vector3.x, self.vector3.y, self.vector3.z)
@@ -104,7 +120,9 @@ def new_add_object_to_buildbuy_system(obj_id, zone_id):
 
 def new_invalidate_object_location(obj_id, zone_id):
     global _objects_instance
-    _objects_instance = Buildbuy_obj()
+    if _objects_instance is None:
+        _objects_instance = Buildbuy_obj()
+
     _objects_instance.add_invalidate(obj_id, zone_id)
     return originals["invalidate_object_location"](obj_id, zone_id)
 
@@ -132,4 +150,4 @@ def inject_location_hooks():
 
 # Oyun tamamen yükleme ekranını bitirip açıldığında hook atıyoruz ki
 # ilk açılıştaki o obje oluşturma spamına rastlamayalım.
-# Ctx.add_callback("game_load", inject_location_hooks)
+Ctx.add_callback("game_load", inject_location_hooks)
