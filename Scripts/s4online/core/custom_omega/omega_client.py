@@ -5,6 +5,11 @@ from s4online.utils import Logger, Config
 log = Logger(__name__)
 
 
+# Her döngüde first client çekip üzerinden id çekmek optimize olmayan yol gibi gözükebilir.
+# Bunu düşünmek gayet normal ancak seyahat yönetiminde karışık id değişecek.
+# Optimize yol ile bunu çekmeye çalışırsam bu on_add hooku ile yapılır ancak kod yapısı biraz karmaşık olacaktır.
+# Optimize edeceğim ileride, şimdilik todo bırakıyorum.
+# TODO: Optimize et
 def get_first_client() -> Client | None:
     try:
         if services is None or hasattr(services, "client_manager") is False:
