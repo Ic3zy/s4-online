@@ -27,7 +27,6 @@ from server_commands.interaction_commands import (
     push_interaction,
 )
 
-
 log = Logger(__name__)
 
 is_client = Config.is_client
@@ -123,3 +122,41 @@ def tests(a: bool = True, _connection=None):
             Command("live_drag.end", command_type=CommandType.Live)(live_drag_end)
     except Exception as e:
         outs(f"Hata: {e}")
+
+
+from sims4.commands import execute
+import services
+from s4online.utils import Logger
+
+log = Logger(__name__)
+
+
+@Command("ui_reload", command_type=CommandType.Live)
+def safe_force_push_selectable_sims():
+    try:
+        zone = services.current_zone()
+        # 🛡️ GÜVENLİK BARİKATI: Oyun hala yükleme ekranındaysa ASLA pushlama!
+        if zone is None or zone.is_zone_loading:
+            log.debug(
+                "⏳ [S4ONLINE_UI] Oyun hala yükleme ekranında. UI push ertelendi..."
+            )
+            return
+
+        # 🛡️ 2. BARİKAT: UI Dialog Servisinin ayağa kalktığından emin ol
+        if services.ui_dialog_service() is None:
+            return
+
+        manager = services.client_manager()
+        host_client = manager.get_first_client() if manager is not None else None
+
+        if host_client is not None:
+            log.info(
+                "👥 [S4ONLINE_UI] Yükleme ekranı bitti! Selectable Sim'ler güvenli anlarda pushlanıyor..."
+            )
+            host_client.send_selectable_sims_update()
+
+            if hasattr(host_client, "_send_current_sim_info"):
+                host_client._send_current_sim_info()
+
+    except Exception as e:
+        log.error(f"safe_force_push_selectable_sims error: {e}")

@@ -24,9 +24,12 @@ def setup_client(account_id, client_id, account_name, distributor=None):
         log.info(f"created account: {account_id} ::: {account_name}")
 
         # create client via official client_manager method (matches SimSync's clean approach)
-        test_client = client_manager.create_client(
-            client_id, account, local_client.household_id
-        )
+        # test_client = client_manager.create_client(
+        #     client_id, account, local_client.household_id
+        # )
+
+        test_client = Client(client_id, account, local_client._household_id)
+        client_manager._objects[client_id] = test_client
 
         log.info(f"created client: {client_id}")
 
