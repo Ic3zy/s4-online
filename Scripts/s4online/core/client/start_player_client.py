@@ -2,18 +2,20 @@ from s4online.base import Ctx
 from s4online.utils import Config, Logger
 from .setup import setup_client, setup_sim
 import services
+
 log = Logger(__name__)
+
 
 # example
 # clients = [
 #     {
 #         "client_id": 1,
 #         "account_id": 1,
-#         "account_name": "guest", 
+#         "account_name": "guest",
 #     }
 # ]
 def start_save_client(clients_info: list):
-    if Ctx.get('network_instance') is not None:
+    if Ctx.get("network_instance") is not None:
         _network_instance = Ctx.network_instance
         for client_info in clients_info:
             account_id = client_info["account_id"]
@@ -21,7 +23,7 @@ def start_save_client(clients_info: list):
             client_id = client_info["client_id"]
 
             client = setup_client(account_id, client_id, account_name)
-            
+
             _network_instance.create_client(client, account_name)
     else:
         log.error("Game not loaded")
@@ -37,18 +39,25 @@ def create_clients_info():
         account_id = 900000 + client_count
         client_id = 100000 + client_count
 
-        clients_info.append({
-            "account_id": account_id,
-            "account_name": account_name,
-            "client_id": client_id,
-        })
-
+        clients_info.append(
+            {
+                "account_id": account_id,
+                "account_name": account_name,
+                "client_id": client_id,
+            }
+        )
 
     return clients_info
+
 
 def start_client():
     log.info("Starting clients...")
     try:
+        if Ctx.get("custom_clients") is not None:
+            return
+
+        Ctx.custom_clients = True
+
         clients_info = create_clients_info()
         start_save_client(clients_info)
 
@@ -57,6 +66,7 @@ def start_client():
             return
     except Exception as e:
         log.error(f"Error creating clients: {e}")
+
 
 if not Config.is_client:
     Ctx.add_callback("client_manager_load", start_client)

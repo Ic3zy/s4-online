@@ -10,7 +10,7 @@ log = Logger(__name__)
 # Optimize yol ile bunu çekmeye çalışırsam bu on_add hooku ile yapılır ancak kod yapısı biraz karmaşık olacaktır.
 # Optimize edeceğim ileride, şimdilik todo bırakıyorum.
 # TODO: Optimize et
-def get_first_client() -> Client | None:
+def get_first_client():
     try:
         if services is None or hasattr(services, "client_manager") is False:
             return None
@@ -29,15 +29,41 @@ class Omega_client:
     def __init__(self):
         self.incoming_commands = []
         self.incoming_lock = threading.Lock()
+        self.archived = []
 
         omega.send = lambda *a, **kw: None
 
+    def process_archived(self, client_id):
+        try:
+            if not self.archived:
+                return
+
+            events = self.archived
+
+            log.info(f"Sending {len(events)} archived events to omega")
+
+            for event in events:
+                try:
+                    if event["client_id"] != client_id:
+                        return
+                    ret = _omega.send(client_id, event["msg_id"], event["msg"])
+                    log.debug(f"omega send result: {ret}")
+                except Exception as e:
+                    log.error(f"Omega send error: {e}")
+
+            self.archived = []
+
+        except Exception as e:
+            log.error(f"Omega emitter error: {e}")
+
     def omega_emitter(self):
         try:
-            client_id = get_first_client()
-            if client_id is None:
+            client = get_first_client()
+            if client is None:
                 # wait for client
                 return
+
+            client_id = client.id
 
             with self.incoming_lock:
                 if not self.incoming_commands:
@@ -50,6 +76,17 @@ class Omega_client:
 
             for event in events:
                 try:
+                    if event["client_id"] != client_id:
+                        # host tarafında yeni client oluşmuş ve onun mesajlarını gönderiyor olabilir.
+                        # Yeni oluşan id her zaman eskisinden yüksek sayı olur.
+                        # Eğer yeni oluşan bir idye ait ise onu çöpe atamayız.
+                        if event["client_id"] > client_id:
+                            self.archived.append(event)
+                        log.debug(
+                            f"omega client id mismatch: net: {event['client_id']} != loc : {client_id}"
+                        )
+                        continue
+                    self.process_archived(client_id)
                     ret = _omega.send(client_id, event["msg_id"], event["msg"])
                     log.debug(f"omega send result: {ret}")
                 except Exception as e:
@@ -61,7 +98,11 @@ class Omega_client:
     def add_msg(self, data):
         try:
             top_event = [
-                {"msg_id": e["msg_id"], "msg": e["msg"].encode("latin1")}
+                {
+                    "client_id": e["client_id"],
+                    "msg_id": e["msg_id"],
+                    "msg": e["msg"].encode("latin1"),
+                }
                 for e in data.get("data", [])
             ]
             pattern = data.get("pattern")

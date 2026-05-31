@@ -1,6 +1,7 @@
 import threading, time, omega, _omega
 from s4online.utils import Logger
 from s4online.base import Ctx
+import distributor.system
 import time
 
 log = Logger(__name__)
@@ -19,6 +20,7 @@ class Omega_host:
         self.tick_rate = 15
         self.tick_interval = 1 / self.tick_rate
         self.min_sleep_time = 0.001  # cpu korumak için maksimum 1000 hz
+        self.local_client_id = 0
         omega.send = self.custom_omega
         Thread(target=self.process, daemon=True).start()
 
@@ -28,6 +30,9 @@ class Omega_host:
         # Host'taki kendi local client
         # Oyuncu clientleri 100000 üzerinde oluyor
         if client_id < 100000:
+            if self.local_client_id != client_id:
+                self.local_client_id = client_id
+
             _omega.send(client_id, msg_id, msg_bytes)
 
             if Ctx.get("game_load") or global_distributor:
@@ -43,7 +48,12 @@ class Omega_host:
             return
 
         try:
+            if self.local_client_id == 0:
+                # wait for client
+                return log.error("custom_omega HOST wait for client")
+
             chunk = {
+                "client_id": self.local_client_id,
                 "msg_id": msg_id,
                 "msg": msg_bytes.decode("latin1"),
             }

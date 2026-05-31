@@ -345,3 +345,8 @@ class DistributorNew:
             except Exception as e:
                 log.error(f"get_all_client_active_sim error: {e}")
         return sims if sims else None
+
+    def get_first_client(self):
+        for dist in self.distributors:
+            if dist.client is not None and dist.client.id < 10000:
+                return dist.client
