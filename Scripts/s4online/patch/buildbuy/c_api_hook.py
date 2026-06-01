@@ -150,7 +150,7 @@ def inject_location_hooks():
     if defaults is None:
         originals["defaults"] = "ok"
 
-        _buildbuy.add_object_to_buildbuy_system *= new_add_object_to_buildbuy_system
+        _buildbuy.add_object_to_buildbuy_system = new_add_object_to_buildbuy_system
         _buildbuy.invalidate_object_location = new_invalidate_object_location
         _buildbuy.is_location_outside = new_is_location_outside
     else:

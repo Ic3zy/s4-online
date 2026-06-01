@@ -368,14 +368,6 @@ class DistributorNew:
         if immediate:
             self.process_events()
 
-    def process_all_client(self):
-        return
-        for dist in self.distributors:
-            try:
-                dist.process()
-            except Exception as e:
-                log.error(f"process_all_client error: {e}")
-
     def process(self):
         if self.is_client:
             omega_ref = get_omega_ref()
@@ -384,8 +376,6 @@ class DistributorNew:
             self.journal.clear()
         else:
             self.process_events()
-            # Yeni akışta gerek yok.
-            # self.process_all_client()
             self._send_view_updates()
 
     def process_events(self):
@@ -401,7 +391,6 @@ class DistributorNew:
         journal = self.journal
         if journal.entries:
             ops = journal.get_custom_ops()
-            log.debug(f"Sending {len(ops)} view updates...")
             journal.clear()
             try:
                 # all kullanıyorum burada tüm distributorlere _send etmek de bir çözümdü.
@@ -440,7 +429,6 @@ class DistributorNew:
 
             entry.operation_list.operations.append(operation)
 
-        log.debug(f"Sending {view_updates} view updates SEND VİEW...")
         if view_updates:
             for client_id, view_up in view_updates.items():
                 if client != "all" and client is not None and client.id == client_id:
@@ -451,7 +439,6 @@ class DistributorNew:
                     self.send_view_up(view_up, client_id)
 
     def send_view_up(self, view_up, client_id):
-        log.debug(f"send_view_up: {client_id}")
         if client_id == "all":
             self.send_message_all_clients(MSG_OBJECTS_VIEW_UPDATE, view_up)
             return
@@ -473,21 +460,10 @@ class DistributorNew:
             if dist.client.id == client_id:
                 return dist
 
-    def get_distributor_by_account_name(self, name, default="self"):
-        for dist in self.distributors:
-            if dist.account_name == name:
-                return dist
-        log.warning("account name ile dist alınamadı")
-
-        if default == "self":
-            return self
-
-        return default
-
     def get_client_by_account_name(self, name):
-        for dist in self.distributors:
-            if dist.account_name == name:
-                return dist.client
+        for client in self.clients.values():
+            if client.account_name == name:
+                return client
         log.warning("account name ile client alınamadı")
         return self.client
 
