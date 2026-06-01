@@ -32,7 +32,7 @@ class Omega_host:
         if client_id < 100000:
             if self.local_client_id != client_id:
                 self.local_client_id = client_id
-
+            log.debug(f"sending ops local client id: {self.local_client_id}")
             _omega.send(client_id, msg_id, msg_bytes)
 
             if Ctx.get("game_load") or global_distributor:

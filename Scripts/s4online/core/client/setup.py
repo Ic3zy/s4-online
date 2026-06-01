@@ -1,5 +1,5 @@
 from server_commands.sim_commands import set_active_sim
-import server.account, services, time
+import server.account, services, time, distributor.system
 from s4online.utils import Logger
 from server.client import Client
 
@@ -11,7 +11,7 @@ def create_client(client_id, account_name, household_id):
     return new_client
 
 
-def setup_client(account_id, client_id, account_name, distributor=None):
+def setup_client(account_id, client_id, account_name):
     try:
         client_manager = services.client_manager()
         local_client = services.get_first_client()
@@ -30,7 +30,11 @@ def setup_client(account_id, client_id, account_name, distributor=None):
 
         test_client = Client(client_id, account, local_client._household_id)
         client_manager._objects[client_id] = test_client
-
+        distributor_instance = distributor.system._distributor_instance
+        if distributor_instance is not None:
+            distributor_instance.add_client(
+                test_client, account_name, call_is_game=False
+            )
         log.info(f"created client: {client_id}")
 
         # ilk client daha yüklenmedi,

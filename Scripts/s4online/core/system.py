@@ -1,17 +1,203 @@
 from contextlib import contextmanager
 from protocolbuffers import Distributor_pb2 as protocols
-from protocolbuffers.Consts_pb2 import MSG_OBJECTS_VIEW_UPDATE
 from graph_algos import topological_sort
 from gsi_handlers.distributor_handlers import archive_operation
 from sims4.callback_utils import consume_exceptions
-from distributor.system import Journal
+from distributor.system import get_current_tag_set, _current_tag_set, DEFAULT_MASK
 from server.client import Client
 import gsi_handlers, services, distributor.system, weakref, random
+from collections import namedtuple
+from contextlib import contextmanager
+import weakref
+from protocolbuffers import Distributor_pb2 as protocols
+from protocolbuffers.Consts_pb2 import (
+    MSG_OBJECTS_VIEW_UPDATE,
+    MGR_UNMANAGED,
+    MGR_OBJECT,
+    MGR_SIM_INFO,
+)
+import protocolbuffers.DistributorOps_pb2
+from distributor import logger
+from distributor.rollback import ProtocolBufferRollback
+from sims4.repr_utils import standard_repr
+import elements
+import reset
+import services
+
 from s4online.utils import Logger, Config
 from s4online.base import Ctx
+from .journal_list import OpObject, S4OnlineProxyList
 
 log = Logger(__name__)
 _send_index = 0
+
+
+class Journal:
+    JournalEntry = namedtuple(
+        "JournalEntry",
+        (
+            "object",
+            "protocol_buffer",
+            "payload_type",
+            "manager_id",
+            "debug_object_name",
+        ),
+    )
+    JournalEntry.__repr__ = lambda self: standard_repr(
+        self,
+        self.object,
+        self.protocol_buffer,
+        self.payload_type,
+        self.manager_id,
+        self.debug_object_name,
+    )
+    JournalSeed = namedtuple(
+        "JournalSeed", ("op", "object_id", "manager_id", "debug_object_name")
+    )
+
+    def __init__(self):
+        self.entries = S4OnlineProxyList()
+        self._deferred_journal_seeds = S4OnlineProxyList()
+        self.deferring = False
+
+    def __repr__(self):
+        return "<Journal ops={}>".format(self.op_count)
+
+    @property
+    def op_count(self):
+        return len(self.entries)
+
+    def get_custom_ops(self):
+        return self.entries.get_custom_ops()
+
+    def start_deferring(self):
+        self.deferring = True
+
+    def stop_deferring(self):
+        self.deferring = False
+        index = 0
+        for journal_seed in self._deferred_journal_seeds:
+            entry = self._build_journal_entry(journal_seed)
+
+            custom_op = self._deferred_journal_seeds.get_custom_op(index)
+            op_obj = OpObject(
+                entry,
+                custom_op.client_id,
+            )
+
+            self.entries.append(op_obj)
+
+            index += 1
+
+        self._deferred_journal_seeds.clear()
+
+    def add(self, obj, op, ignore_deferral=False, client_id="all"):
+        for tag in _current_tag_set:
+            op.block_on_tag(tag)
+
+        manager_id_override = None
+
+        if op.block_on_task_owner:
+            op_task_owner = None
+            time_service = services.time_service()
+
+            if time_service is not None and time_service.sim_timeline is not None:
+                timeline = time_service.sim_timeline
+                current_element = timeline.get_current_element()
+                while current_element is not None:
+                    if isinstance(current_element, reset.ResettableElement):
+                        op_task_owner = current_element.obj
+                        break
+                    else:
+                        if isinstance(current_element, elements.AllElement):
+                            break
+                        else:
+                            if current_element._parent_handle is None:
+                                break
+                            else:
+                                current_element = current_element._parent_handle.element
+            if (
+                op_task_owner is not None
+                and op_task_owner is not obj
+                and (obj is None or op_task_owner.id != obj.id)
+            ):
+                op_task_owner_manager = getattr(op_task_owner, "manager", None)
+                if op_task_owner_manager is not None and hasattr(
+                    op_task_owner_manager, "id"
+                ):
+                    op.add_additional_channel(
+                        op_task_owner_manager.id,
+                        op_task_owner.id,
+                        mask=op._primary_channel_mask_override,
+                    )
+                    op._primary_channel_mask_override = 0
+        else:
+            if obj.manager is not None and obj.manager.id == MGR_SIM_INFO:
+                manager_id_override = MGR_OBJECT
+        journal_seed = self._build_journal_seed(op, obj, manager_id_override)
+        if not self.deferring or ignore_deferral:
+            entry = self._build_journal_entry(journal_seed)
+            op_obj = OpObject(entry, client_id)
+            self.entries.append(op_obj)
+        else:
+            op_obj = OpObject(journal_seed, client_id)
+            self._deferred_journal_seeds.append(op_obj)
+
+    def _build_journal_seed(self, op, obj, manager_id):
+        object_name = None
+        if obj is None:
+            object_id = 0
+            if manager_id is None:
+                manager_id = MGR_UNMANAGED
+        else:
+            object_id = obj.id
+            if manager_id is None:
+                manager_id = (
+                    obj.manager.id if obj.manager is not None else MGR_UNMANAGED
+                )
+        return Journal.JournalSeed(op, object_id, manager_id, object_name)
+
+    def _build_journal_entry(self, journal_seed):
+        op = journal_seed.op
+        object_id = journal_seed.object_id
+        manager_id = journal_seed.manager_id
+        object_name = journal_seed.debug_object_name
+        proto_buff = protocolbuffers.DistributorOps_pb2.Operation()
+        mask_override = None
+        if manager_id == MGR_UNMANAGED:
+            mask_override = 0
+        if op._force_execution_on_tag:
+            mask_override = 0
+        else:
+            if op._primary_channel_mask_override is not None:
+                mask_override = op._primary_channel_mask_override
+        if mask_override is not None and mask_override != DEFAULT_MASK:
+            proto_buff.primary_channel_mask_override = mask_override
+        for channel in op._additional_channels:
+            with ProtocolBufferRollback(
+                proto_buff.additional_channels
+            ) as additional_channel_msg:
+                additional_channel_msg.id.manager_id = channel[0]
+                additional_channel_msg.id.object_id = channel[1]
+                if channel[1] == object_id and mask_override is not None:
+                    additional_channel_msg.mask = mask_override
+                else:
+                    additional_channel_msg.mask = channel[2]
+        op.write(proto_buff)
+        if not proto_buff.IsInitialized():
+            logger.error(
+                "Message generated by {} is missing required fields: "
+                + str(proto_buff.FindInitializationErrors()),
+                op,
+            )
+        payload_type = op.payload_type
+        entry = Journal.JournalEntry(
+            object_id, proto_buff, payload_type, manager_id, object_name
+        )
+        return entry
+
+    def clear(self):
+        self.entries.clear()
 
 
 def get_omega_ref():
@@ -26,20 +212,9 @@ class DistributorNew:
         self._pending_creates = weakref.WeakSet()
         self.events = list()
         self.distributors = list()
+        self.clients = dict()
         self.is_client = Config.is_client
         log.info("distributor oluşturuldu")
-        # self.setup()
-
-    # hot install kodu, şu anki akışımızda bu koda ihtiyacımız yok.
-    def setup(self):
-        client = services.client_manager().get_first_client()
-        if client is not None:
-            base_distributor = distributor.system.Distributor()
-            base_distributor.client = client
-            base_distributor.account_name = "base_distributor"
-            self.distributors.append(base_distributor)
-        else:
-            log.warning("client bulunamadı")
 
     def __repr__(self):
         return "<Distributor events={}>".format(len(self.events))
@@ -47,10 +222,10 @@ class DistributorNew:
     @property
     def client(self):
         client = None
-        for dist in self.distributors:
-            if dist.client is not None and dist.client.id < 10000:
-                client = dist.client
-                break
+        for client in self.clients.values():
+            if client.id < 10000:
+                return client
+
         return client
 
     @contextmanager
@@ -97,10 +272,9 @@ class DistributorNew:
             obj.visible_to_client = False
 
     def add_client(self, client, account_name=None, call_is_game=True):
-        for cl in self.distributors:
-            if cl.client.id == client.id:
-                log.info("Client zaten var")
-                raise Exception("Client zaten var")
+        if self.clients.get(client.id) is not None:
+            log.info("Client zaten var")
+            raise Exception("Client zaten var")
 
         self.process()
 
@@ -114,10 +288,15 @@ class DistributorNew:
                 persona_name = "guest_" + random.randint(1, 90000)
             account_name = persona_name
 
-        new_dist = distributor.system.Distributor()
-        self.distributors.append(new_dist)
-        new_dist.add_client(client)
-        new_dist.account_name = account_name
+        client.account_name = account_name
+        self.clients[client.id] = client
+        self._add_ops_for_client_connect(client)
+        # YENİ AKIŞTA GEREK YOK
+
+        # new_dist = distributor.system.Distributor()
+        # self.distributors.append(new_dist)
+        # new_dist.add_client(client)
+        # new_dist.account_name = account_name
 
         # self._add_ops_for_client_connect(client)
 
@@ -135,10 +314,9 @@ class DistributorNew:
     def remove_client(self, client):
         log.info("client kaldırıldı")
         self.process()
-        for dist in self.distributors:
-            if dist.client.id == client.id:
-                dist.remove_client(client)
-                self.distributors.remove(dist)
+
+        if client.id in self.clients:
+            del self.clients[client.id]
 
     def _debug_validate_op(self, obj, op):
         objs = getattr(obj, "client_objects_gen", None)
@@ -147,9 +325,12 @@ class DistributorNew:
                 self._debug_validate_op(sub_obj, op)
 
     def add_op(self, obj, op):
+        if self.client is None:
+            return None
+
         if isinstance(obj, Client):
-            dist = self.get_client_distributor_for_client_id(obj.id)
-            if dist is not None:
+            client = self.clients.get(obj.id)
+            if client is not None:
                 # TODO: büyük hata çıkarabilir burası
                 # seyehat yönetiminde oyuncu taraftaki id ile buradaki id eşleşmez ise oyun çöp
                 # oyuncu tarafının id'si muhtemelen eşleşir
@@ -159,10 +340,10 @@ class DistributorNew:
                 # 100011 idli client oyuncu tarafında tanımlı değil.
                 # Oyuncu tarafında sadece idsi 3 olan client tanımlı.
                 # Normal olarak id 3 de oyunun kendi default clienti
-                main_client = services.client_manager().get_first_client()
+                main_client = self.client
                 game_load = Ctx.get("game_load")
-                if game_load is not None:
-                    return dist.add_op(main_client, op)
+                if game_load:
+                    return self.journal.add(main_client, op, client_id=obj.id)
 
         self.journal.add(obj, op)
 
@@ -179,26 +360,7 @@ class DistributorNew:
         entry.primary_channel.id.manager_id = manager_id
         entry.primary_channel.id.object_id = obj_id
         entry.operation_list.operations.append(operation)
-        if (
-            gsi_handlers.distributor_handlers.archiver.enabled
-            or gsi_handlers.distributor_handlers.sim_archiver.enabled
-        ):
-            _send_index += 1
-            if _send_index >= 4294967295:
-                _send_index = 0
-            archive_operation(
-                obj_id,
-                obj_name,
-                manager_id,
-                operation,
-                payload_type,
-                _send_index,
-                (
-                    self.client
-                    if self.client is not None
-                    else services.client_manager().get_first_client()
-                ),
-            )
+
         self.send_message_all_clients(MSG_OBJECTS_VIEW_UPDATE, view_update)
 
     def add_event(self, msg_id, msg, immediate=False):
@@ -207,6 +369,7 @@ class DistributorNew:
             self.process_events()
 
     def process_all_client(self):
+        return
         for dist in self.distributors:
             try:
                 dist.process()
@@ -218,9 +381,11 @@ class DistributorNew:
             omega_ref = get_omega_ref()
             if omega_ref is not None:
                 omega_ref.omega_emitter()
+            self.journal.clear()
         else:
             self.process_events()
-            self.process_all_client()
+            # Yeni akışta gerek yok.
+            # self.process_all_client()
             self._send_view_updates()
 
     def process_events(self):
@@ -235,7 +400,8 @@ class DistributorNew:
     def _send_view_updates(self):
         journal = self.journal
         if journal.entries:
-            ops = list(journal.entries)
+            ops = journal.get_custom_ops()
+            log.debug(f"Sending {len(ops)} view updates...")
             journal.clear()
             try:
                 # all kullanıyorum burada tüm distributorlere _send etmek de bir çözümdü.
@@ -247,62 +413,65 @@ class DistributorNew:
 
     def _send_view_updates_for_client(self, client, all_ops):
         global _send_index
-        view_update = None
-        last_obj_id = None
-        last_manager_id = None
-        for obj_id, operation, payload_type, manager_id, obj_name in all_ops:
-            if view_update is None:
-                view_update = protocols.ViewUpdate()
+        view_updates = {}
+
+        # bağımsız takip etmek için akıllı bir takip sözlüğü açıyoruz
+        client_last_processed = {}
+
+        for op_obj in all_ops:
+            obj_id, operation, payload_type, manager_id, obj_name = op_obj.op
+            client_id = op_obj.client_id
+
+            if view_updates.get(client_id) is None:
+                view_updates[client_id] = protocols.ViewUpdate()
+                client_last_processed[client_id] = (None, None)
+
+            view_update = view_updates[client_id]
+            last_obj_id, last_manager_id = client_last_processed[client_id]
+
             if obj_id != last_obj_id or manager_id != last_manager_id:
                 entry = view_update.entries.add()
                 entry.primary_channel.id.manager_id = manager_id
                 entry.primary_channel.id.object_id = obj_id
-                last_obj_id = obj_id
-                last_manager_id = manager_id
+
+                client_last_processed[client_id] = (obj_id, manager_id)
+            else:
+                entry = view_update.entries[-1]
+
             entry.operation_list.operations.append(operation)
-            if (
-                gsi_handlers.distributor_handlers.archiver.enabled
-                or gsi_handlers.distributor_handlers.sim_archiver.enabled
-            ):
-                _send_index += 1
-                if _send_index >= 4294967295:
-                    _send_index = 0
-                archive_operation(
-                    obj_id,
-                    obj_name,
-                    manager_id,
-                    operation,
-                    payload_type,
-                    _send_index,
-                    (
-                        client
-                        if client != "all"
-                        else services.client_manager().get_first_client()
-                    ),
-                )
-        if view_update is not None:
-            if client != "all" and client is not None:
-                client.send_message(
-                    MSG_OBJECTS_VIEW_UPDATE, view_update, global_distributor=False
-                )
-            elif client == "all":
-                self.send_message_all_clients(MSG_OBJECTS_VIEW_UPDATE, view_update)
+
+        log.debug(f"Sending {view_updates} view updates SEND VİEW...")
+        if view_updates:
+            for client_id, view_up in view_updates.items():
+                if client != "all" and client is not None and client.id == client_id:
+                    client.send_message(
+                        MSG_OBJECTS_VIEW_UPDATE, view_up, global_distributor=False
+                    )
+                elif client == "all":
+                    self.send_view_up(view_up, client_id)
+
+    def send_view_up(self, view_up, client_id):
+        log.debug(f"send_view_up: {client_id}")
+        if client_id == "all":
+            self.send_message_all_clients(MSG_OBJECTS_VIEW_UPDATE, view_up)
+            return
+
+        client = self.clients.get(client_id)
+        if client is not None:
+            client.send_message(MSG_OBJECTS_VIEW_UPDATE, view_up)
 
     def send_message_all_clients(self, msg_id, msg):
-        for dist in self.distributors:
+        for client in self.clients.values():
             try:
-                dist.client.send_message(msg_id, msg, global_distributor=True)
+                client.send_message(msg_id, msg, global_distributor=True)
             except Exception as e:
                 log.error(f"send_message_all_clients error: {e}")
-                import traceback
 
-                log.error(traceback.format_exc())
-
+    # ESKİ METHODLAR DÜZENLENECEK ŞİMDİLİK KALSIN
     def get_client_distributor_for_client_id(self, client_id):
         for dist in self.distributors:
             if dist.client.id == client_id:
                 return dist
-        return None
 
     def get_distributor_by_account_name(self, name, default="self"):
         for dist in self.distributors:
