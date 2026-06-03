@@ -1,38 +1,15 @@
-import sys
-from . import network_client
+from .network_client import Network_client
 from .ev import ev
 from .listener import Listener
-from threading import Thread, RLock
+from threading import Thread
 from s4online.utils import Logger, show_notification, load_pyd
 from s4online.base import Ctx
 import time
 
 log = Logger(__name__)
 
-enet = load_pyd("enet", "enet.cp37-win_amd64.pyd")
 rapid = load_pyd("rapidjson", "rapidjson.cp37-win_amd64.pyd")
 s4cpoxide = load_pyd("s4cpoxide", "s4cpoxide.pyd")
-
-
-class _Peer:
-    # Burda böyle yeni bir peer instance'i yaratıyorum çünkü lock olmaz ise peer'i kullanmak riskli.
-    # Normalde enet bunu gil tutarak yapıyordu, yani aynı anda tek thread gerçekten enete erişebiliyordu.
-    # Ben bu tek thread kısmını beğenmedim çünkü service(200) yaparsam sadece network thread'i değil tüm threadler uyuyordu.
-    # Bu enetin gil'i tutması sebebiyle gerçekleşiyordu ancak ben cython api'ını biraz daha değiştirerek gil tutmadan yaptım.
-    # Bunun faydası bana çok fazla ama yanında zararları da var,
-    # şu an enet erişimi tamamen python düzeyinde thread safe olmalı.
-    # Aksi halde deadlock oluyor.
-    def __init__(self, peer, lock):
-        self.peer = peer
-        self.lock = lock
-
-    def send(self, channel, message):
-        with self.lock:
-            print(f"📤 [SERVER] -> Paket GönderiliyoSSSr: {message}")
-            try:
-                self.peer.send(message)
-            except Exception as e:
-                log.error(f"Peer send hata: {e}")
 
 
 class NetworkServer:
@@ -42,7 +19,6 @@ class NetworkServer:
         self.is_client = is_client
         self.account_name = account_name
         self.ev = ev
-        self.lock = RLock()
 
         self.running = True
         self.net_tick = 30
@@ -51,14 +27,14 @@ class NetworkServer:
         self.clients = dict()
 
         self.create_socket()
-        self.tick_thread = Thread(target=self.loop, daemon=True).start()
+        self.tick_thread = Thread(target=self.loop, daemon=True)
+        self.tick_thread.start()
 
     def __len__(self):
         return len(self.clients)
 
     def create_socket(self):
         if self.is_client:
-            log.log("SERVER CLİENT OLARAK KURULUYOR")
             self.create_client_socket()
         else:
             self.create_server_socket()
@@ -71,11 +47,9 @@ class NetworkServer:
 
     def loop(self):
         while True:
-            # print("tick")
             self.on_tick()
 
     def on_tick(self):
-        # self.listener.on_tick()
         self.process_clients()
         time.sleep(1 / self.net_tick)
 
@@ -93,23 +67,24 @@ class NetworkServer:
             "reconnect": reconnect,
         }
         data = rapid.dumps(auth_payload, default=str).encode("latin1")
-        # packet = enet.Packet(data, enet.PACKET_FLAG_RELIABLE)
 
         self.peer.send(data)
 
     def create_client(self, g_client, account_name):
-        n_client = network_client.Network_client(g_client, account_name)
+        n_client = Network_client(g_client, account_name)
         self.add_client(n_client)
+
         return n_client
 
     # ----- CLIENT -----
     def create_client_socket(self, re_connect=False):
         peer, engine = s4cpoxide.start_client(f"{self.host}:{self.port}")
 
-        if peer is not None:
-            self.peer = peer
-            self.engine = engine
-            # self.send_auth(reconnect=re_connect)
+        self.peer = peer
+        self.engine = engine
+
+        if re_connect:
+            self.send_auth(reconnect=True)
 
     # ----- SERVER -----
     def create_server_socket(self):
@@ -123,7 +98,7 @@ class NetworkServer:
 
     def accept_thread(self, peer, name, reconnect=False):
         log.info("accept func")
-        if reconnect is False:
+        if not reconnect:
             show_notification(
                 f"Yeni bir kullanıcı bağlanıyor...\nKullanıcı adı: {name}"
             )
@@ -187,6 +162,7 @@ class NetworkServer:
                         continue
         except Exception as e:
             log.error(f"send_message_all_clients hata: {e}")
+
     def send_message_by_client(self, message, n_client):
         try:
             n_client.send_message(message)

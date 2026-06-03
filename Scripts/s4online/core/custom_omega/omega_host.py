@@ -10,26 +10,20 @@ MAX_CHUNK = 128
 
 
 class Omega_host:
-    def __init__(self, enetServer):
+    def __init__(self, networkServer):
         log.info("omega kurulacak...")
-        self.enetServer = enetServer
-        self.outgoing = {}
-        self.outgoing_lock = threading.Lock()
-        self.runing = True
+        self.networkServer = networkServer
         # 15 Hz tick
-        self.tick_rate = 15
-        self.tick_interval = 1 / self.tick_rate
-        self.min_sleep_time = 0.001  # cpu korumak için maksimum 1000 hz
         self.local_client_id = 0
+
         omega.send = self.custom_omega
-        Thread(target=self.process, daemon=True).start()
 
         log.log("omega kuruldu")
 
     def custom_omega(self, client_id, msg_id, msg_bytes, global_distributor=False):
         # Host'taki kendi local client
-        # Oyuncu clientleri 100000 üzerinde oluyor
-        if client_id < 100000:
+        # Oyuncu clientleri 10000 üzerinde oluyor
+        if client_id < 10000:
             if self.local_client_id != client_id:
                 self.local_client_id = client_id
             _omega.send(client_id, msg_id, msg_bytes)
@@ -48,7 +42,6 @@ class Omega_host:
 
         try:
             if self.local_client_id == 0:
-                # wait for client
                 return log.error("custom_omega HOST wait for client")
 
             chunk = {
@@ -56,10 +49,6 @@ class Omega_host:
                 "msg_id": msg_id,
                 "msg": msg_bytes.decode("latin1"),
             }
-
-            # if isinstance(self.outgoing.get(client_id), dict):
-            #     self.outgoing[client_id]["data"].append(chunk)
-            #     return
 
             msg = {
                 "pattern": {"type": "omega", "time": time.time()},
@@ -71,51 +60,9 @@ class Omega_host:
 
     def send_message(self, message, client_id):
         if client_id == "all":
-            self.enetServer.send_message_all_clients(message)
+            self.networkServer.send_message_all_clients(message)
         else:
-            self.enetServer.send_message_from_client_id(client_id, message)
-
-        # self.enetServer.on_tick()
-
-    def send_outgoing_list(self):
-        if len(self.enetServer) == 0:
-            # wait for client
-            return
-        with self.outgoing_lock:
-            outgoing = self.outgoing
-            self.outgoing = {}
-
-        if not outgoing:
-            return
-
-        # chunking
-        for client_id, outgoing_list in outgoing.items():
-            if client_id == "all":
-                self.enetServer.send_message_all_clients(outgoing_list)
-            else:
-                self.enetServer.send_message_from_client_id(client_id, outgoing_list)
-
-    def on_tick(self):
-        self.send_outgoing_list()
-
-    def process(self):
-        tick_count = 1
-        while self.runing:
-            tick_count += 1
-            if tick_count > 1000:
-                start = time.time()
-                self.on_tick()
-                elapsed = time.time() - start
-                log.debug(f"tick avarage: {elapsed}")
-                tick_count = 1
-            else:
-                try:
-                    self.on_tick()
-                except Exception as e:
-                    log.error(f"on_tick error: {e}")
-
-            time.sleep(self.tick_interval)
+            self.networkServer.send_message_from_client_id(client_id, message)
 
     def close(self):
         omega.send = _omega.send
-        self.runing = False

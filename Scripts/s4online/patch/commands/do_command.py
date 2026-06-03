@@ -4,54 +4,14 @@ from .map_commands import (
     HOST_BLOCK,
 )
 from s4online.utils import Logger, load_pyd
-from s4online.base import Ctx
-import sims4.commands, inspect
+from s4online.base import Ctx, TaskSchedueler
 from distributor.system import Distributor
+
+import sims4.commands, inspect, time, threading
 
 log = Logger(__name__)
 
 dispatcher = load_pyd("dispatcher", "dispatcher.cp37-win_amd64.pyd")
-
-
-def parser(value: str):
-    for cast in (int, float):
-        try:
-            return cast(value)
-        except ValueError:
-            continue
-    return value
-
-
-def args_parser(args: list):
-    parsed_args = list()
-
-    for arg in args:
-        try:
-            parsed = parser(arg)
-            if parsed is not None:
-                parsed_args.append(parsed)
-            else:
-                continue
-        except ValueError:
-            continue
-
-    return parsed_args
-
-
-def kwargs_parser(kwargs: dict):
-    parsed_kwargs = dict()
-    for key, value in kwargs.items():
-        try:
-            parsed = parser(value)
-            if parsed is not None:
-                parsed_kwargs[key] = parsed
-            else:
-                continue
-
-        except ValueError:
-            continue
-
-    return parsed_kwargs
 
 
 def get_command(command_name):
@@ -66,61 +26,87 @@ def get_command(command_name):
 # TODO: bu bir liste olacak ve içerisinde aynı komut aynı kullanıcıdan girmiş ise yeniden işleme asla alınmayacak.
 
 
-def _do_command(command_name, client_id, *args, **kwargs):
-    kwargs["_connection"] = client_id
+class Commander:
+    def __init__(self):
+        self.spam_lock_set = set()
+        self.lock = threading.Lock()
 
-    try:
-        command = get_command(command_name)
+    def spam_locker(self, command_name, client_id):
+        with self.lock:
+            command_doc = f"{command_name} {client_id}"
+            self.spam_lock_set.add(command_doc)
 
-        if command:
-            spec = inspect.getfullargspec(command)
-            parsed_args = sims4.commands.parse_args(spec, list(args), client_id)
-            log.log(f"Parsed_args type : {isinstance(parsed_args, list)}")
-            # 🔥 1. KORUMA: C kodumuz kesinlikle Tuple bekliyor! Listeyi Tuple'a çeviriyoruz.
-            # c_args = tuple(parsed_args) if parsed_args is not None else ()
+    def release_spam_lock(self, command_name, client_id):
+        with self.lock:
+            command_doc = f"{command_name} {client_id}"
+            self.spam_lock_set.discard(command_doc)
 
-            # 🔥 2. KORUMA: Arka plan thread'inin bu sözlüğü havada değiştirmemesi için
-            # sözlüğün saniyeler içinde o anki halinin kopyasını (shallow copy) alıyoruz.
-            kwargs["_connection"] = client_id
-            # c_kwargs = kwargs.copy()
+    def _do_command(self, command_name, client_id, *args, **kwargs):
+        kwargs["_connection"] = client_id
 
-            try:
-                # Artık C tarafına tamamen izole edilmiş, thread-safe paketler gidiyor:
-                # dispatcher.enqueue(command, args=c_args, kwargs=c_kwargs)
-                command(*parsed_args, **kwargs)
-            except Exception as e:
-                log.error(f"hata: {e}")
-                import traceback
+        try:
+            command = get_command(command_name)
 
-                log.error(traceback.format_exc())
-        else:
-            log.warning("command bulunamadı")
-    except Exception as e:
-        log.error(f"{e}")
+            command_doc = f"{command_name} {client_id}"
+            if command_doc in self.do_command_list:
+                return
+
+            self.do_command_list.append(command_doc)
+
+            if command:
+                spec = inspect.getfullargspec(command)
+                parsed_args = sims4.commands.parse_args(spec, list(args), client_id)
+
+                kwargs["_connection"] = client_id
+
+                try:
+                    command(*parsed_args, **kwargs)
+                except Exception as e:
+                    log.error(f"hata: {e}")
+
+                self.spam_locker(command_name, client_id)
+                TaskSchedueler.add(
+                    {
+                        "command": self.release_spam_lock,
+                        "args": [command_name, client_id],
+                        "kwargs": {},
+                        "called_time": time.time() + 0.8,
+                    }
+                )
+
+            else:
+                log.warning("command bulunamadı")
+        except Exception as e:
+            log.error(f"{e}")
+
+    def do_command_from_network(self, data):
+        try:
+            command_name = data.get("command_name")
+            account_name = data.get("account_name")
+            if account_name is None:
+                return log.error("account name yok")
+            else:
+                distributor_instance = Distributor.instance()
+                if distributor_instance is None:
+                    return log.error("distributor yok")
+
+                client = distributor_instance.get_client_by_account_name(account_name)
+                if client is None:
+                    return log.error("client yok")
+
+                client_id = client.id
+                log.debug(f"client id: {client_id}")
+
+            args = data.get("args")
+            kwargs = data.get("kwargs")
+            log.debug(f"do_command_from_network: {command_name} {args} {kwargs}")
+            self._do_command(command_name, client_id, *args, **kwargs)
+
+        except Exception as e:
+            log.error(f"do_command_from_network hata: {e}")
 
 
-def do_command_from_network(data):
-    try:
-        command_name = data.get("command_name")
-        account_name = data.get("account_name")
-        if account_name is None:
-            return log.error("account name yok")
-        else:
-            client_id = (
-                Distributor.instance().get_client_by_account_name(account_name).id
-            )
-            log.debug(f"client id: {client_id}")
-
-        args = data.get("args")
-        kwargs = data.get("kwargs")
-        log.debug(f"do_command_from_network: {command_name} {args} {kwargs}")
-        _do_command(command_name, client_id, *args, **kwargs)
-
-    except Exception as e:
-        log.error(f"do_command_from_network hata: {e}")
-        import traceback
-
-        log.error(traceback.format_exc())
+Commander_instance = Commander()
 
 
 def add_network_server():
@@ -129,7 +115,7 @@ def add_network_server():
         ev = network_instance.ev
 
     if ev is not None:
-        ev.on({"type": "server_command"}, do_command_from_network)
+        ev.on({"type": "server_command"}, Commander_instance.do_command_from_network)
 
 
 Ctx.add_callback("network_instance", add_network_server)

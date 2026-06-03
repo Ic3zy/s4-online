@@ -5,7 +5,6 @@ from s4online.utils import Logger, load_pyd
 from s4online.base import TransactionQueue
 import time
 
-enet = load_pyd("enet", "enet.cp37-win_amd64.pyd")
 rapid = load_pyd("rapidjson", "rapidjson.cp37-win_amd64.pyd")
 log = Logger(__name__)
 
@@ -30,32 +29,32 @@ class Network_client:
             return
 
         # Tek callda en fazla 1 paket gitmeli.
-        msg = self._queue.get_next()
-        if msg is None:
-            return
-        try:
-            msg["pattern"]["times"] = time.time()
-            if isinstance(msg, dict):
-                payload = rapid.dumps(msg, default=str)
-            else:
-                payload = str(msg)
+        for _ in range(20):
+            msg = self._queue.get_next()
+            if msg is None:
+                return
+            try:
+                msg["pattern"]["times"] = time.time()
+                if isinstance(msg, dict):
+                    payload = rapid.dumps(msg, default=str)
+                else:
+                    payload = str(msg)
 
-            data = payload
-            # print(f"📤 [CLIENT] -> Paket GönderiliyoSSSr: {data}")
-            # ENet'e gönderim yapıyoruz
-            # enet.peer.send genellikle paket kopyalandığında hata vermez
-            # ama peer koptuysa veya buffer doluysa exception atabilir.
-            self.peer.send(data.encode("latin1"))
-            # Buraya geldiysek gönderim başarılı (veya kuyruğa alındı)
-            self._queue.confirm_success()
+                data = payload
+                # ama peer koptuysa veya buffer doluysa exception atabilir.
+                self.peer.send(data.encode("latin1"))
+                # Buraya geldiysek gönderim başarılı (veya kuyruğa alındı)
+                self._queue.confirm_success()
 
-        except ConnectionError as e:
-            log.error(f"Peer bağlanamadı, hata: {e}")
-            self.peer = None
-            return
+            except RuntimeError as e:
+                log.error(f"Peer bağlanamadı, hata: {e}")
+                self.peer = None
+                return
 
-        except Exception as e:
-            # Gönderim başarısız! confirm_success() ÇAĞRILMADI.
-            # Paket hala kuyruğun başında bekliyor.
-            log.error(f"Gönderim hatası ({self.account_name}), paket saklanıyor: {e}")
-            return  # bir sonraki tick'te tekrar dene.
+            except Exception as e:
+                # Gönderim başarısız! confirm_success() ÇAĞRILMADI.
+                # Paket hala kuyruğun başında bekliyor.
+                log.error(
+                    f"Gönderim hatası ({self.account_name}), paket saklanıyor: {e}"
+                )
+                return  # bir sonraki tick'te tekrar dene.

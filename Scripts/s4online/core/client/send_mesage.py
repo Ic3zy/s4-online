@@ -8,6 +8,7 @@ def send_message(self, msg_id, msg, global_distributor=False):
             serialize_msg = msg.SerializeToString()
         except Exception as e:
             serialize_msg = msg
+
         omega.send(
             self.id,
             msg_id,

@@ -31,10 +31,6 @@ class Ev:
                 except Exception as e:
                     log.error(f"func içi hata: {e}")
 
-                    import traceback
-
-                    log.error(traceback.format_exc())
-
             return True
 
         except Exception as e:

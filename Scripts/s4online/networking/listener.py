@@ -3,9 +3,9 @@ from s4online.utils import Logger, load_pyd
 from .ev import ev
 import time
 
-rapid = load_pyd("rapidjson", "rapidjson.cp37-win_amd64.pyd")
-enet = load_pyd("enet", "enet.cp37-win_amd64.pyd")
 log = Logger(__name__)
+
+rapid = load_pyd("rapidjson", "rapidjson.cp37-win_amd64.pyd")
 
 
 class Listener:
@@ -16,7 +16,6 @@ class Listener:
     def __init__(self, server):
         self.server = server
         self.tick_interval = 1000 / server.net_tick
-        self.lock = server.lock
         self.running = True
         self.thread = Thread(target=self.listen_loop, daemon=True)
         self.thread.start()
@@ -25,9 +24,7 @@ class Listener:
         self.listen_loop()
 
     def listen_enet(self):
-        # with self.lock:
         event = self.server.engine.poll_events()
-        print(event)
         data = event.get("payload")
 
         obj = {}
@@ -37,8 +34,9 @@ class Listener:
                 if obj:
                     pattern = obj.get("pattern")
                     if pattern:
-                        times = obj["pattern"]["time"] - time.time()
+                        times = pattern["time"] - time.time()
                         log.time(f"packet time listener: {times}")
+
             except Exception as e:
                 log.error(f"packet parse error: {e}")
 
@@ -48,7 +46,7 @@ class Listener:
         while True:
             try:
                 data, obj = self.listen_enet()
-                
+
                 if data["type"] == "data":
                     log.debug("veri geldi")
                     if obj.get("type") == "auth":
