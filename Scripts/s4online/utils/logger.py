@@ -35,3 +35,6 @@ class Logger:
 
     def debug(self, message):
         self.write_log(message, "debug")
+
+    def time(self, message):
+        self.write_log(message, "time")

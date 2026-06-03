@@ -1,7 +1,7 @@
 import distributor.system
 from s4online.utils import Tracker, Logger, load_pyd
 
-loopmod = load_pyd("loopmod", "loopmod.pyd")
+# loopmod = load_pyd("loopmod", "loopmod.pyd")
 
 log = Logger(__name__)
 

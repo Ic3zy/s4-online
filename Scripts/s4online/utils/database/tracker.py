@@ -4,7 +4,7 @@ import json, os
 
 from ..pydLoader import load_pyd
 
-loopmod = load_pyd("loopmod", "loopmod.pyd")
+# loopmod = load_pyd("loopmod", "loopmod.pyd")
 
 _instance = None
 
@@ -21,8 +21,8 @@ class Tracker:
         self.db_data = {}
         self.read_db()
         # write db
-        self.loop = loopmod.Loop(self.write_db, lambda: 10)
-        self.loop.start()
+        # self.loop = loopmod.Loop(self.write_db, lambda: 10)
+        # self.loop.start()
 
     @property
     def db(self) -> dict:
@@ -39,6 +39,7 @@ class Tracker:
             self.db_data = {}
 
     def write_db(self) -> None:
+        return
         DiskQueue.add(self.tracker_directory, self.db_data, is_json=True)
 
 

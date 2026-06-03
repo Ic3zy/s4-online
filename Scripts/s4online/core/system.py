@@ -17,7 +17,6 @@ from protocolbuffers.Consts_pb2 import (
     MGR_SIM_INFO,
 )
 import protocolbuffers.DistributorOps_pb2
-from distributor import logger
 from distributor.rollback import ProtocolBufferRollback
 from sims4.repr_utils import standard_repr
 import elements
@@ -373,7 +372,7 @@ class DistributorNew:
             omega_ref = get_omega_ref()
             if omega_ref is not None:
                 omega_ref.omega_emitter()
-            self.journal.clear()
+            # self.journal.clear()
         else:
             self.process_events()
             self._send_view_updates()

@@ -21,6 +21,36 @@ is_client = Config.is_client
 
 
 rapid = load_pyd("rapidjson", "rapidjson.cp37-win_amd64.pyd")
+s4cpoxide = load_pyd("s4cpoxide", "s4cpoxide.pyd")
+
+# print = log.log
+
+# active_client_peer = None
+
+
+# def on_packet_received(packet):
+#     global active_client_peer
+#     print(f"📥 [HOST] -> Paket Geldi: {packet}")
+
+#     # Eğer gelen paket PING ise, client'a anında PONG üfle!
+#     if packet == "PING":
+#         if active_client_peer is not None:
+#             # Rust içi try_send kullanan o kurşun geçirmez, non-blocking mermi!
+#             active_client_peer.send("PONG")
+#         else:
+#             print("🚨 [HOST] -> Paket geldi ama active peer referansı henüz yok!")
+
+
+# def on_peer_connected(peer):
+#     global active_client_peer
+#     active_client_peer = peer
+#     print(f"🟢 [HOST] -> YENİ BİR PEER SIZDI AQ! Adres: {peer.ip_address}")
+
+
+# print("🚀 [HOST] -> Rust Network Core 127.0.0.1:8888 üzerinde tetikleniyor...")
+
+# # Rust makine dairesini host modunda asenkron fırlatıyoruz. GIL anında boşa çıkıyor!
+# s4cpoxide.start_host("0.0.0.0:8888", on_packet_received, on_peer_connected)
 
 
 def inject_all(is_client, b) -> bool:

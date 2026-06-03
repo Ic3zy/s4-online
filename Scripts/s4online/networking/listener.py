@@ -18,55 +18,61 @@ class Listener:
         self.tick_interval = 1000 / server.net_tick
         self.lock = server.lock
         self.running = True
+        self.thread = Thread(target=self.listen_loop, daemon=True)
+        self.thread.start()
 
     def on_tick(self):
         self.listen_loop()
 
     def listen_enet(self):
         # with self.lock:
-        host = self.server.current_host
-        if host is not None:
-            data = host.service(self.tick_interval)
-        else:
-            data = None
+        event = self.server.engine.poll_events()
+        print(event)
+        data = event.get("payload")
+
+        obj = {}
         if data is not None:
             try:
-                obj = rapid.loads(data.packet.data.decode("latin1"))
-            except:
-                obj = {}
+                obj = rapid.loads(data.decode("latin1"))
+                if obj:
+                    pattern = obj.get("pattern")
+                    if pattern:
+                        times = obj["pattern"]["time"] - time.time()
+                        log.time(f"packet time listener: {times}")
+            except Exception as e:
+                log.error(f"packet parse error: {e}")
 
-        return (data, obj)
+        return (event, obj)
 
     def listen_loop(self):
-        try:
-            data, obj = self.listen_enet()
+        while True:
+            try:
+                data, obj = self.listen_enet()
+                
+                if data["type"] == "data":
+                    log.debug("veri geldi")
+                    if obj.get("type") == "auth":
+                        self.server.accept_thread(
+                            data["peer"],
+                            obj.get("account_name"),
+                            reconnect=obj.get("reconnect"),
+                        )
+                        continue
 
-            if data.type == enet.EVENT_TYPE_RECEIVE:
-                log.debug("veri geldi")
-                if obj.get("type") == "auth":
-                    self.server.accept_thread(
-                        data.peer,
-                        obj.get("account_name"),
-                        reconnect=obj.get("reconnect"),
-                    )
-                    return
+                    pattern = obj.get("pattern")
+                    if pattern is None:
+                        log.info(f"veri kısmında hata oluştu! Pattern yok: {obj}")
+                        continue
 
-                pattern = obj.get("pattern")
-                if pattern is None:
-                    log.info(f"veri kısmında hata oluştu! Pattern yok: {obj}")
-                    return
+                    ev.emit(pattern.get("type"), obj, log.debug)
 
-                ev.emit(pattern.get("type"), obj, log.debug)
+                # elif data["type"] == "connected":
+                #     self.server.accept_thread(data.peer, self.lock, reconnect=False)
+                # elif data.type == enet.EVENT_TYPE_DISCONNECT:
+                #     log.info("client disconnected")
+                #     if self.server.is_client:
+                #         self.server.create_client_socket(re_connect=True)
+                #         continue
 
-            elif data.type == enet.EVENT_TYPE_DISCONNECT:
-                log.info("client disconnected")
-                if self.server.is_client:
-                    self.server.create_client_socket(re_connect=True)
-                    return
-
-        except Exception as e:
-            log.error("Recv error:", e)
-            import traceback
-
-            log.error(traceback.format_exc())
-            return
+            except Exception as e:
+                log.error("Recv error:", e)

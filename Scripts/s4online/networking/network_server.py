@@ -5,11 +5,13 @@ from .listener import Listener
 from threading import Thread, RLock
 from s4online.utils import Logger, show_notification, load_pyd
 from s4online.base import Ctx
+import time
 
 log = Logger(__name__)
 
 enet = load_pyd("enet", "enet.cp37-win_amd64.pyd")
 rapid = load_pyd("rapidjson", "rapidjson.cp37-win_amd64.pyd")
+s4cpoxide = load_pyd("s4cpoxide", "s4cpoxide.pyd")
 
 
 class _Peer:
@@ -26,7 +28,11 @@ class _Peer:
 
     def send(self, channel, message):
         with self.lock:
-            self.peer.send(channel, message)
+            print(f"📤 [SERVER] -> Paket GönderiliyoSSSr: {message}")
+            try:
+                self.peer.send(message)
+            except Exception as e:
+                log.error(f"Peer send hata: {e}")
 
 
 class NetworkServer:
@@ -39,8 +45,8 @@ class NetworkServer:
         self.lock = RLock()
 
         self.running = True
-        self.net_tick = 60
-        self.current_host = None
+        self.net_tick = 30
+        self.engine = None
         self.peer = None
         self.clients = dict()
 
@@ -69,8 +75,9 @@ class NetworkServer:
             self.on_tick()
 
     def on_tick(self):
-        self.listener.on_tick()
+        # self.listener.on_tick()
         self.process_clients()
+        time.sleep(1 / self.net_tick)
 
     def add_client(self, client):
         self.clients[client._g_client.id] = client
@@ -86,10 +93,9 @@ class NetworkServer:
             "reconnect": reconnect,
         }
         data = rapid.dumps(auth_payload, default=str).encode("latin1")
-        packet = enet.Packet(data, enet.PACKET_FLAG_RELIABLE)
+        # packet = enet.Packet(data, enet.PACKET_FLAG_RELIABLE)
 
-        with self.lock:
-            self.peer.send(0, packet)
+        self.peer.send(data)
 
     def create_client(self, g_client, account_name):
         n_client = network_client.Network_client(g_client, account_name)
@@ -98,37 +104,22 @@ class NetworkServer:
 
     # ----- CLIENT -----
     def create_client_socket(self, re_connect=False):
-        with self.lock:
-            client = enet.Host(None, 1, 1, 0, 0)
+        peer, engine = s4cpoxide.start_client(f"{self.host}:{self.port}")
 
-        self.current_host = client
-
-        address = enet.Address(self.host, self.port)
-        peer = client.connect(address, 1)
-        self.peer = peer
-
-        for _ in range(50):  # Maksimum ~500ms bekleme
-            event = client.service(10)
-            if event is not None and event.type == enet.EVENT_TYPE_CONNECT:
-                break
-
-        return client
+        if peer is not None:
+            self.peer = peer
+            self.engine = engine
+            # self.send_auth(reconnect=re_connect)
 
     # ----- SERVER -----
     def create_server_socket(self):
-        with self.lock:
-            address = enet.Address(self.host, self.port)
-            server = enet.Host(address, 32, 1, 0, 0)
-
-            self.current_host = server
-        return server
+        self.engine = s4cpoxide.start_server(f"{self.host}:{self.port}")
 
     # network client get
     def get_n_client_by_name(self, name):
         for client in self.clients.values():
             if client.account_name == name:
                 return client
-        return None
 
     def accept_thread(self, peer, name, reconnect=False):
         log.info("accept func")
@@ -143,7 +134,7 @@ class NetworkServer:
                 return
 
             # Direkt peer'i referans vermek yerine yeni bir içerisinde bu peeri tutan obje veriyoruz
-            n_client.set_peer(_Peer(peer, self.lock))
+            n_client.set_peer(peer)
             g_client = n_client._g_client
 
             if g_client is None:
@@ -161,7 +152,7 @@ class NetworkServer:
             if n_client is None:
                 return show_notification(f"{name} gelecek bir oyuncu değil.")
 
-            n_client.set_peer(_Peer(peer, self.lock))
+            n_client.set_peer(peer)
             show_notification(f"{name} yeniden bağlandı.")
 
     def send_message_from_client_id(self, client_id: int, message: dict):
@@ -173,28 +164,29 @@ class NetworkServer:
         self.send_message_by_client(message, client)
 
     def send_message_all_clients(self, message: dict):
-        if self.is_client:
-            if message.get("account_name") is None:
-                message["account_name"] = self.account_name
+        try:
+            if self.is_client:
+                log.debug("send_message_all_clients Client")
+                if message.get("account_name") is None:
+                    message["account_name"] = self.account_name
 
-            if self.peer is None:
-                log.warning("peer yok; veri gönderilemedi")
-                return
+                if self.peer is None:
+                    log.warning("peer yok; veri gönderilemedi")
+                    return
 
-            payload = rapid.dumps(message, default=str).encode("latin1")
-            packet = enet.Packet(payload, enet.PACKET_FLAG_RELIABLE)
+                payload = rapid.dumps(message, default=str).encode("latin1")
 
-            with self.lock:
-                self.peer.send(0, packet)
-
-        else:
-            for client in self.clients.values():
-                try:
-                    client.send_message(message)
-                except Exception as e:
-                    log.error(f"gönderi sırasında hata {e}")
-                    continue
-
+                self.peer.send(payload)
+                log.debug("veri gönderildi")
+            else:
+                for client in self.clients.values():
+                    try:
+                        client.send_message(message)
+                    except Exception as e:
+                        log.error(f"gönderi sırasında hata {e}")
+                        continue
+        except Exception as e:
+            log.error(f"send_message_all_clients hata: {e}")
     def send_message_by_client(self, message, n_client):
         try:
             n_client.send_message(message)

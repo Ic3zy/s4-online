@@ -1,7 +1,7 @@
 from s4online.utils import Config, pydLoader, Logger
 from s4online.base import Ctx
 
-loopmod = pydLoader.load_pyd("loopmod", "loopmod.pyd")
+# loopmod = pydLoader.load_pyd("loopmod", "loopmod.pyd")
 log = Logger(__name__)
 
 

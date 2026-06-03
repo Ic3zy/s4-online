@@ -58,22 +58,28 @@ class Omega_client:
 
     def omega_emitter(self):
         try:
+            t1 = time.time()
             client = get_first_client()
+            t2 = time.time()
+            log.time(f"get_first_client: {t2 - t1}")
+
             if client is None:
                 # wait for client
                 return
 
             client_id = client.id
-
+            t1 = time.time()
             with self.incoming_lock:
                 if not self.incoming_commands:
                     return
 
                 events = self.incoming_commands
                 self.incoming_commands = []
-
+            t2 = time.time()
+            log.time(f"omega_emitter lock: {t2 - t1}")
             log.info(f"Sending {len(events)} events to omega, client_id: {client_id}")
 
+            t1 = time.time()
             for event in events:
                 try:
                     if event["client_id"] != client_id:
@@ -92,6 +98,8 @@ class Omega_client:
                 except Exception as e:
                     log.error(f"Omega send error: {e}")
 
+            t2 = time.time()
+            log.time(f"omega_emitter send: {t2 - t1}")
         except Exception as e:
             log.error(f"Omega emitter error: {e}")
 
@@ -109,7 +117,7 @@ class Omega_client:
             if pattern is not None:
                 times = pattern.get("time")
                 if times is not None:
-                    log.debug(f"pattern: {pattern} times: {times - time.time()}")
+                    log.debug(f"pattern: {pattern} times: {time.time() - times}")
 
         except Exception as e:
             log.error(f"Add msg parse error: {e}")

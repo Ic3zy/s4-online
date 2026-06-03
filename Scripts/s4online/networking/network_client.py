@@ -28,39 +28,34 @@ class Network_client:
         """Ağ thread'i tarafından çağrılır."""
         if self.peer is None:
             return
-        if len(self._queue) > 10:
-            log.warning(f"Queue size too big: {len(self._queue)}")
-            try:
-                self._queue.queue_merge()
-            except Exception as e:
-                log.error(f"Queue merge error: {e}")
 
-        # Tek callda en fazla 10 paket gitmeli.
-        for _ in range(10):
-            msg = self._queue.get_next()
-            if msg is None:
-                break
+        # Tek callda en fazla 1 paket gitmeli.
+        msg = self._queue.get_next()
+        if msg is None:
+            return
+        try:
+            msg["pattern"]["times"] = time.time()
+            if isinstance(msg, dict):
+                payload = rapid.dumps(msg, default=str)
+            else:
+                payload = str(msg)
 
-            try:
-                msg["pattern"]["times"] = time.time()
-                if isinstance(msg, dict):
-                    payload = rapid.dumps(msg, default=str)
-                else:
-                    payload = str(msg)
-                encoded = payload.encode("latin1")
-                data = enet.Packet(encoded, enet.PACKET_FLAG_RELIABLE)
-                # ENet'e gönderim yapıyoruz
-                # enet.peer.send genellikle paket kopyalandığında hata vermez
-                # ama peer koptuysa veya buffer doluysa exception atabilir.
-                self.peer.send(0, data)
+            data = payload
+            # print(f"📤 [CLIENT] -> Paket GönderiliyoSSSr: {data}")
+            # ENet'e gönderim yapıyoruz
+            # enet.peer.send genellikle paket kopyalandığında hata vermez
+            # ama peer koptuysa veya buffer doluysa exception atabilir.
+            self.peer.send(data.encode("latin1"))
+            # Buraya geldiysek gönderim başarılı (veya kuyruğa alındı)
+            self._queue.confirm_success()
 
-                # Buraya geldiysek gönderim başarılı (veya kuyruğa alındı)
-                self._queue.confirm_success()
+        except ConnectionError as e:
+            log.error(f"Peer bağlanamadı, hata: {e}")
+            self.peer = None
+            return
 
-            except Exception as e:
-                # Gönderim başarısız! confirm_success() ÇAĞRILMADI.
-                # Paket hala kuyruğun başında bekliyor.
-                log.error(
-                    f"Gönderim hatası ({self.account_name}), paket saklanıyor: {e}"
-                )
-                break  # Döngüyü kır, bir sonraki tick'te tekrar dene.
+        except Exception as e:
+            # Gönderim başarısız! confirm_success() ÇAĞRILMADI.
+            # Paket hala kuyruğun başında bekliyor.
+            log.error(f"Gönderim hatası ({self.account_name}), paket saklanıyor: {e}")
+            return  # bir sonraki tick'te tekrar dene.
