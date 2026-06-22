@@ -31,11 +31,6 @@ class Listener:
         if data is not None:
             try:
                 obj = rapid.loads(data.decode("latin1"))
-                if obj:
-                    pattern = obj.get("pattern")
-                    if pattern:
-                        times = pattern["time"] - time.time()
-                        log.time(f"packet time listener: {times}")
 
             except Exception as e:
                 log.error(f"packet parse error: {e}")

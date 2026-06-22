@@ -67,7 +67,7 @@ class CustomBlockingQueue:
                 self._condition.wait(timeout=time_to_wait)
 
 
-class Task_Schedueler:
+class Task_Scheduler:
     def __init__(self):
         self.queue = CustomBlockingQueue()
         self.thread = threading.Thread(target=self.tick_loop, daemon=True)
@@ -92,7 +92,7 @@ class Task_Schedueler:
         self.queue.put(item)
 
 
-TaskSchedueler = Task_Schedueler()
+TaskScheduler = Task_Scheduler()
 
 # start = time.time()
 

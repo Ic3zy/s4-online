@@ -7,9 +7,8 @@ from .map_commands import (
     HOST_BLOCK,
     CLIENT_BLOCK,
 )
-from .do_command import do_command_from_network
 import sims4.math, services
-from .do_command import do_command_from_network
+from .do_command import Commander_instance
 
 log = Logger(__name__)
 
@@ -80,7 +79,7 @@ def live_drag_end_host_render(data):
             object_source_id, x=position["x"], y=position["y"], z=position["z"]
         )
     # Call the original function
-    do_command_from_network(data)
+    Commander_instance.do_command_from_network(data)
 
 
 def inject(enet_Server, is_client):

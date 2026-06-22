@@ -4,7 +4,7 @@ from .map_commands import (
     HOST_BLOCK,
 )
 from s4online.utils import Logger, load_pyd
-from s4online.base import Ctx, TaskSchedueler
+from s4online.base import Ctx, TaskScheduler
 from distributor.system import Distributor
 
 import sims4.commands, inspect, time, threading
@@ -48,10 +48,8 @@ class Commander:
             command = get_command(command_name)
 
             command_doc = f"{command_name} {client_id}"
-            if command_doc in self.do_command_list:
+            if command_doc in self.spam_lock_set:
                 return
-
-            self.do_command_list.append(command_doc)
 
             if command:
                 spec = inspect.getfullargspec(command)
@@ -65,7 +63,7 @@ class Commander:
                     log.error(f"hata: {e}")
 
                 self.spam_locker(command_name, client_id)
-                TaskSchedueler.add(
+                TaskScheduler.add(
                     {
                         "command": self.release_spam_lock,
                         "args": [command_name, client_id],
@@ -114,8 +112,8 @@ def add_network_server():
     if network_instance is not None:
         ev = network_instance.ev
 
-    if ev is not None:
-        ev.on({"type": "server_command"}, Commander_instance.do_command_from_network)
+        if ev is not None:
+            ev.on({"type": "server_command"}, Commander_instance.do_command_from_network)
 
 
 Ctx.add_callback("network_instance", add_network_server)
