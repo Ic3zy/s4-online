@@ -11,7 +11,7 @@ import sims4.commands, inspect, time, threading
 
 log = Logger(__name__)
 
-dispatcher = load_pyd("dispatcher", "dispatcher.cp37-win_amd64.pyd")
+dispatcher = load_pyd("dispatcher", "dispatcher.pyd")
 
 
 def get_command(command_name):
@@ -77,7 +77,7 @@ class Commander:
         except Exception as e:
             log.error(f"{e}")
 
-    def do_command_from_network(self, data):
+    def do_command_main_thread(self, data):
         try:
             command_name = data.get("command_name")
             account_name = data.get("account_name")
@@ -102,6 +102,12 @@ class Commander:
 
         except Exception as e:
             log.error(f"do_command_from_network hata: {e}")
+
+    def do_command_from_network(self, data):
+        try:
+            dispatcher.enqueue(self.do_command_main_thread, (data,))
+        except Exception as e:
+            log.error(f"dispatcher hata {e}")
 
 
 Commander_instance = Commander()
