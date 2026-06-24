@@ -78,15 +78,17 @@ def setup_sim():
         client_manager = services.client_manager()
         # Diğer tüm istemcileri (oyuncuları) döngüye al
         for client in client_manager._objects.values():
+            try:
             # Local client'lara sim ataması yapmayacağım,
             # nedeni ise zaten atanmış durumda.
-            if is_local_client(client):
-                continue
+            # if is_local_client(client):
+            #     continue
 
             # Senkronizasyon işini alt fonksiyona pasla
-            sync_remote_client(
-                remote_client=client, local_client=local_client, target_sim=first_sim
-            )
-
+                sync_remote_client(
+                    remote_client=client, local_client=local_client, target_sim=first_sim
+                )
+            except Exception as e:
+                log.error(f"setup sim error: {e}")
     except Exception as e:
         log.error(f"setup_sim genel hatası: {e}")

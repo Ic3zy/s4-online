@@ -16,7 +16,7 @@ dispatcher = load_pyd("dispatcher", "dispatcher.pyd")
 
 def get_command(command_name):
     if command_name in HOST_BLOCK:
-        return None
+        return
     if command_name in HOST_REPLACEMENT_LIST:
         return HOST_REPLACEMENT_LIST[command_name]
     return COMMAND_LIST.get(command_name)
