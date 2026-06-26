@@ -59,6 +59,11 @@ class ClientManager(DistributableObjectManager):
             if client.id < 10000:
                 return client
 
+    def get_local_client(self):
+        for client in self._objects.values():
+            if client.id < 10000:
+                return client
+
     def get_first_client_id(self):
         for client in self._objects.values():
             if client.id < 10000:

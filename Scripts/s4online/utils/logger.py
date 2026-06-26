@@ -27,7 +27,11 @@ class Logger:
             return
 
         import traceback
-
+        exc = traceback.format_exc()
+        # Boş loglar istemiyorum.
+        if "NoneType: None" in exc:
+            return
+        
         self.error(traceback.format_exc(), no_traceback=True)
 
     def warning(self, message):
