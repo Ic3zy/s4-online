@@ -15,6 +15,7 @@ from s4online.patch import inject, inject_time, uninject, uninject_time
 from s4online.utils import Config, Logger, show_notification
 from sims4.commands import CheatOutput, Command, CommandType, unregister
 from s4online.utils import load_pyd
+from s4online.base import Ctx
 
 log = Logger(__name__)
 is_client = Config.is_client
@@ -73,7 +74,7 @@ def inject_all(is_client, b) -> bool:
 
 def uninject_all():
     uninject_time(is_client)
-    stop_loop()
+    # stop_loop()
     uninject_distributor()
 
     # Fonksiyonu modül üzerinden çağırıyoruz
@@ -88,6 +89,16 @@ def uninject_distributors():
     new_dist.add_client(services.client_manager().get_first_client())
     distributor.system._distributor_instance = new_dist
 
+@Command("blockevent", command_type=CommandType.Live)
+def eventblocker(_connection=None):
+    output = CheatOutput(_connection)
+    output("event blocker")
+    if not Ctx.get("block_events"):
+        Ctx.block_events = True
+    else:
+        Ctx.block_events = not Ctx.block_events
+
+    output(f"block events: {Ctx.get('block_events')}")
 
 @Command("start", command_type=CommandType.Live)
 def start(a: bool = False, b: bool = False, _connection=None):

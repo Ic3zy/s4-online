@@ -328,8 +328,10 @@ class DistributorNew:
             return None
 
         if isinstance(obj, Client):
+            log.debug(f"client olan bir add_op geldi, obj: {obj}, op: {op}")
             client = self.clients.get(obj.id)
             if client is not None:
+
                 # TODO: büyük hata çıkarabilir burası
                 # seyehat yönetiminde oyuncu taraftaki id ile buradaki id eşleşmez ise oyun çöp
                 # oyuncu tarafının id'si muhtemelen eşleşir
@@ -363,6 +365,13 @@ class DistributorNew:
         self.send_message_all_clients(MSG_OBJECTS_VIEW_UPDATE, view_update)
 
     def add_event(self, msg_id, msg, immediate=False):
+        # DEBUGGING
+        if Ctx.get("game_load") and False:
+            log.debug(f"add_event : {msg_id} {msg}")
+
+        if Ctx.get("block_events"):
+            return
+        
         self.events.append((msg_id, msg))
         if immediate:
             self.process_events()

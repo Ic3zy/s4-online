@@ -5,12 +5,6 @@ from server.client import Client
 
 log = Logger(__name__)
 
-
-def create_client(client_id, account_name, household_id):
-    new_client = Client(client_id, account_name, household_id)
-    return new_client
-
-
 def setup_client(account_id, client_id, account_name):
     try:
         client_manager = services.client_manager()
@@ -18,7 +12,7 @@ def setup_client(account_id, client_id, account_name):
         distributor_instance = distributor.system._distributor_instance
 
         if not local_client or not client_manager or not distributor_instance:
-            log.error("local client not found")
+            log.error(f"error args: {local_client} {client_manager} {distributor_instance}")
             return 
 
         # create account
@@ -41,10 +35,20 @@ def setup_client(account_id, client_id, account_name):
 
 
 
-def is_local_client(client):
-    if client.id < 10000:
-        return True
+def is_local_client(client) -> bool:
+    return client.id < 10000
 
+def sync_household(local_client):
+    # household normal şartlarda hiç update edilmiyordu.
+    # Ancak bu update edilmeme sorunu yakın zamanda fark ettiğim bug'a sebep oluyor.
+    # Test aşamasında, çözüp çözmediğini anlamak için çok fazla edge-case denenmeli.
+
+    local_household_id = local_client._household_id
+    client_manager = services.client_manager()
+
+    for client in client_manager._objects.values():
+        if client._household_id != local_household_id:
+            client._household_id = local_household_id
 
 
 def sync_remote_client(remote_client, local_client, target_sim):
@@ -53,9 +57,14 @@ def sync_remote_client(remote_client, local_client, target_sim):
         # Uzak istemcinin aktif sim'ini yerel sim ile eşitle
         # Yerel istemcideki tüm seçilebilir sim'leri uzak istemciye kopyala
         for sim_info in local_client._selectable_sims:
-            remote_client._selectable_sims.add_selectable_sim_info(sim_info)
+            # Her seyahat sonrası tetikleniyor burası.
+            # Zaten ekliyse eklemeye çok gerek yok.
+            if sim_info in remote_client._selectable_sims._selectable_sim_infos:
+                continue
 
-        set_active_sim(target_sim.sim_id, _connection=remote_client.id)
+            remote_client._selectable_sims._selectable_sim_infos.append(sim_info)
+
+        set_active_sim(target_sim.id, _connection=remote_client.id)
 
     except Exception as e:
         log.error(f"Uzak istemci senkronizasyon hatası ({remote_client}): {e}")
@@ -70,7 +79,8 @@ def setup_sim():
             return 
 
         # İlk seçilebilir sim'i güvenli bir şekilde al
-        first_sim = next(iter(local_client._selectable_sims), None)
+        # first_sim = next(iter(local_client._selectable_sims), None)
+        first_sim = local_client.active_sim
         if first_sim is None:
             log.warn("No selectable sims found on local client")
             return 
@@ -81,8 +91,8 @@ def setup_sim():
             try:
             # Local client'lara sim ataması yapmayacağım,
             # nedeni ise zaten atanmış durumda.
-            # if is_local_client(client):
-            #     continue
+                if is_local_client(client):
+                    continue
 
             # Senkronizasyon işini alt fonksiyona pasla
                 sync_remote_client(
