@@ -4,7 +4,7 @@ from .map_commands import (
     HOST_BLOCK,
 )
 from s4online.utils import Logger, load_pyd
-from s4online.base import Ctx, TaskScheduler
+from s4online.base import Ctx, TaskScheduler, UserPickContext
 from distributor.system import Distributor
 
 import sims4.commands, inspect, time, threading
@@ -58,7 +58,8 @@ class Commander:
                 kwargs["_connection"] = client_id
 
                 try:
-                    command(*parsed_args, **kwargs)
+                    with UserPickContext.activate(client_id):
+                        command(*parsed_args, **kwargs)
                 except Exception as e:
                     log.error(f"hata: {e}")
 
@@ -119,7 +120,9 @@ def add_network_server():
         ev = network_instance.ev
 
         if ev is not None:
-            ev.on({"type": "server_command"}, Commander_instance.do_command_from_network)
+            ev.on(
+                {"type": "server_command"}, Commander_instance.do_command_from_network
+            )
 
 
 Ctx.add_callback("network_instance", add_network_server)

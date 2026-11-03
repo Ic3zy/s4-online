@@ -20,6 +20,8 @@ from server_commands.interaction_commands import (
 from server_commands.lighting_commands import set_color_and_intensity
 from server_commands.sim_commands import (
     set_active_sim,
+    set_next_sim,
+    skewer_icon_activated,
     request_satisfaction_reward_list,
     whims_award_prize,
 )
@@ -31,7 +33,7 @@ from server_commands.ui_commands import (
     # ui_create_hovertip,
     toggle_silence_phone,
 )
-from server_commands.career_commands import find_career, select_career
+from server_commands.career_commands import find_career, select_career, send_to_work
 from server_commands.inventory_commands import (
     purchase_picker_response,
     purchase_picker_response_by_ids,
@@ -77,6 +79,8 @@ from .interaction_command import (
     generate_choices as custom_generate_choices,
 )
 
+from .host_context_pick_commands import hcp_select_choice_hook
+
 COMMAND_LIST = {
     "clock.setspeed": set_speed,
     "clock.toggle_pause_unpause": toggle_pause_unpause,
@@ -88,8 +92,11 @@ COMMAND_LIST = {
     "interactions.cancel": cancel_mixer_interaction,
     "interactions.cancel_si": cancel_super_interaction,
     "interactions.push": push_interaction,
+    "interactions.has_choices": has_choices,
     "lighting.set_color_and_intensity": set_color_and_intensity,
     "sims.set_active": set_active_sim,
+    "sims.set_next": set_next_sim,
+    "sims.skewer_icon_activated": skewer_icon_activated,
     "ui.dialog.respond": ui_dialog_respond,
     "ui.dialog.pick_result": ui_dialog_pick_result,
     "ui.dialog.text_input": ui_dialog_text_input,
@@ -97,6 +104,7 @@ COMMAND_LIST = {
     "ui.toggle_silence_phone": toggle_silence_phone,
     "careers.find_career": find_career,
     "careers.select": select_career,
+    "careers.send_to_work": send_to_work,
     "inventory.purchase_picker_response": purchase_picker_response,
     "inventory.purchase_picker_response_by_ids": purchase_picker_response_by_ids,
     "inventory.view_update": inventory_view_update,
@@ -119,12 +127,12 @@ COMMAND_LIST = {
     "live_drag.end": live_drag_end,
     "live_drag.canceled": live_drag_canceled,
     "live_drag.sell": live_drag_sell,
-    "interactions.has_choices": has_choices,
     "clock.request_pause": request_pause,
     "clock.unrequest_pause": unrequest_pause,
 }
 # ---------- Replace Lists ----------
 HOST_REPLACEMENT_LIST = {
+    "interactions.select": hcp_select_choice_hook,
     "interactions.has_choices": custom_has_choices,
     "interactions.choices": custom_generate_choices,
     # "live_drag.start": custom_live_drag_start,
@@ -146,3 +154,8 @@ HOST_BLOCK = [
     "clock.request_pause",
     "clock.unrequest_pause",
 ]
+
+# ---------- Client-Scoped Commands ----------
+CLIENT_SCOPED_COMMANDS = {
+    "interactions.select",
+}

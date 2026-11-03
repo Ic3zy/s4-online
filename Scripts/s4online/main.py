@@ -17,6 +17,8 @@ from sims4.commands import CheatOutput, Command, CommandType, unregister
 from s4online.utils import load_pyd
 from s4online.base import Ctx
 
+from social_media.social_media_service import SocialMediaService
+
 log = Logger(__name__)
 is_client = Config.is_client
 
@@ -89,6 +91,7 @@ def uninject_distributors():
     new_dist.add_client(services.client_manager().get_first_client())
     distributor.system._distributor_instance = new_dist
 
+
 @Command("blockevent", command_type=CommandType.Live)
 def eventblocker(_connection=None):
     output = CheatOutput(_connection)
@@ -99,6 +102,7 @@ def eventblocker(_connection=None):
         Ctx.block_events = not Ctx.block_events
 
     output(f"block events: {Ctx.get('block_events')}")
+
 
 @Command("start", command_type=CommandType.Live)
 def start(a: bool = False, b: bool = False, _connection=None):
@@ -136,3 +140,38 @@ def alive(_connection=None):
 
     clients_count = services.client_manager()._objects
     output(f"clients: {clients_count}")
+
+
+@Command("time_advence", command_type=CommandType.Live)
+def time_advence(hours: int, mint: int, _connection=None):
+    services.game_clock_service().advance_game_time(
+        hours=hours, minutes=mint, seconds=0
+    )
+    CheatOutput(_connection)(f"Oyun {hours} saat {mint} dakika ilerletildi")
+
+
+@Command("testphone", command_type=CommandType.Live)
+def testphone(_connection=None):
+    output = CheatOutput(_connection)
+    output("testphone")
+    try:
+
+        unregister("careers.send_to_work")
+
+        def new_phc(*a, **kw):
+            output(f"{a}, {kw}")
+
+        Command("careers.send_to_work", command_type=CommandType.Live)(new_phc)
+
+    except Exception as e:
+        output(f"error: {e}")
+
+
+@Command("testphone2", command_type=CommandType.Live)
+def testphone2(_connection=None):
+    output = CheatOutput(_connection)
+    output("testphone")
+    try:
+        pass
+    except Exception as e:
+        output(f"error: {e}")

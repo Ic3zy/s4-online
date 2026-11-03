@@ -4,6 +4,7 @@ from graph_algos import topological_sort
 from gsi_handlers.distributor_handlers import archive_operation
 from sims4.callback_utils import consume_exceptions
 from distributor.system import get_current_tag_set, _current_tag_set, DEFAULT_MASK
+from distributor.ops import ShowSocialMediaPanel, SendUIMessage
 from server.client import Client
 import gsi_handlers, services, distributor.system, weakref, random
 from collections import namedtuple
@@ -24,7 +25,7 @@ import reset
 import services
 
 from s4online.utils import Logger, Config
-from s4online.base import Ctx
+from s4online.base import Ctx, UserPickContext
 from .journal_list import OpObject, S4OnlineProxyList
 
 log = Logger(__name__)
@@ -349,6 +350,19 @@ class DistributorNew:
         self.journal.add(obj, op)
 
     def add_op_with_no_owner(self, op):
+        if isinstance(op, ShowSocialMediaPanel):
+            try:
+                sim_id = op.op.sim_id
+                clients = self.get_clients_from_sim_id(sim_id)
+                if clients is not None:
+                    for client in clients:
+                        self.journal.add(None, op, client_id=client.id)
+
+                    return
+
+            except Exception as e:
+                log.info(f"ShowSocialMediaPanel sim_id hata: {e}")
+
         self.journal.add(None, op)
 
     def send_op_with_no_owner_immediate(self, op):
@@ -366,13 +380,22 @@ class DistributorNew:
 
     def add_event(self, msg_id, msg, immediate=False):
         # DEBUGGING
-        if Ctx.get("game_load") and False:
-            log.debug(f"add_event : {msg_id} {msg}")
-
         if Ctx.get("block_events"):
             return
-        
-        self.events.append((msg_id, msg))
+
+        client_id = UserPickContext.client_id
+        if client_id is None and False:
+            log.error(f"client_id is None, msg_id: {msg_id}, msg: {msg}")
+
+        if client_id is not None and client_id == "MainClient":
+            client_id = self.client.id
+
+        if Ctx.get("game_load") and False:
+            log.debug(
+                f"add_event : {msg_id} client_id: raw_c: {UserPickContext.client_id} mapped_c:{client_id} msg:{msg}"
+            )
+
+        self.events.append((msg_id, msg, client_id))
         if immediate:
             self.process_events()
 
@@ -390,8 +413,11 @@ class DistributorNew:
         try:
             events = self.events
             self.events = list()
-            for msg_id, msg in events:
-                self.send_message_all_clients(msg_id, msg)
+            for msg_id, msg, client_id in events:
+                if client_id is None:
+                    self.send_message_all_clients(msg_id, msg)
+                else:
+                    self.send_message_from_client_id(msg_id, msg, client_id)
         except Exception as e:
             log.error(f"process_events error: {e}")
 
@@ -401,8 +427,6 @@ class DistributorNew:
             ops = journal.get_custom_ops()
             journal.clear()
             try:
-                # all kullanıyorum burada tüm distributorlere _send etmek de bir çözümdü.
-                # ancak tüm distributorlere _send dersem hepsinde VIEW UPDATE yeniden oluşturulur, optimizasyon düşer.
                 self._send_view_updates_for_client("all", ops)
             except:
                 log.error("Error sending view updates to client!")
@@ -440,9 +464,7 @@ class DistributorNew:
         if view_updates:
             for client_id, view_up in view_updates.items():
                 if client != "all" and client is not None and client.id == client_id:
-                    client.send_message(
-                        MSG_OBJECTS_VIEW_UPDATE, view_up, global_distributor=False
-                    )
+                    client.send_message(MSG_OBJECTS_VIEW_UPDATE, view_up)
                 elif client == "all":
                     self.send_view_up(view_up, client_id)
 
@@ -458,9 +480,24 @@ class DistributorNew:
     def send_message_all_clients(self, msg_id, msg):
         for client in self.clients.values():
             try:
-                client.send_message(msg_id, msg, global_distributor=True)
+                client.send_message(msg_id, msg)
             except Exception as e:
                 log.error(f"send_message_all_clients error: {e}")
+
+    def send_message_from_client_id(self, msg_id, msg, client_id):
+        client = self.clients.get(client_id)
+        if client is not None:
+            client.send_message(msg_id, msg)
+        else:
+            log.error(f"client not found: {client_id}, msg_id: {msg_id}")
+
+    def get_clients_from_sim_id(self, sim_id):
+        clients = list()
+        for client in self.clients.values():
+            if client.active_sim is not None and client.active_sim.id == sim_id:
+                clients.append(client)
+
+        return clients if clients else None
 
     # ESKİ METHODLAR DÜZENLENECEK ŞİMDİLİK KALSIN
     def get_client_distributor_for_client_id(self, client_id):
