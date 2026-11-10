@@ -5,6 +5,7 @@ from server.client import Client
 
 log = Logger(__name__)
 
+
 def setup_client(account_id, client_id, account_name):
     try:
         client_manager = services.client_manager()
@@ -12,11 +13,15 @@ def setup_client(account_id, client_id, account_name):
         distributor_instance = distributor.system._distributor_instance
 
         if not local_client or not client_manager or not distributor_instance:
-            log.error(f"error args: {local_client} {client_manager} {distributor_instance}")
-            return 
+            log.error(
+                f"error args: {local_client} {client_manager} {distributor_instance}"
+            )
+            return
 
         # create account
-        account = server.account.Account(account_id, account_name)
+        # account = server.account.Account(account_id, account_name)
+        # account = None
+        account = local_client._account
         log.info(f"created account: {account_id} ::: {account_name}")
 
         test_client = Client(client_id, account, local_client._household_id)
@@ -24,7 +29,7 @@ def setup_client(account_id, client_id, account_name):
 
         if distributor_instance is not None:
             distributor_instance.add_client(
-                test_client, account_name, call_is_game=False
+                test_client, account_name=account_name, call_is_game=False
             )
 
         log.log(f"Client created (id={client_id})")
@@ -34,9 +39,9 @@ def setup_client(account_id, client_id, account_name):
         log.error(f"err: {e}")
 
 
-
 def is_local_client(client) -> bool:
     return client.id < 10000
+
 
 def sync_household(local_client):
     # household normal şartlarda hiç update edilmiyordu.
@@ -76,27 +81,29 @@ def setup_sim():
         local_client = services.get_first_client()
         if not local_client:
             log.error("Local client not found")
-            return 
+            return
 
         # İlk seçilebilir sim'i güvenli bir şekilde al
         # first_sim = next(iter(local_client._selectable_sims), None)
         first_sim = local_client.active_sim
         if first_sim is None:
             log.warn("No selectable sims found on local client")
-            return 
+            return
 
         client_manager = services.client_manager()
         # Diğer tüm istemcileri (oyuncuları) döngüye al
         for client in client_manager._objects.values():
             try:
-            # Local client'lara sim ataması yapmayacağım,
-            # nedeni ise zaten atanmış durumda.
+                # Local client'lara sim ataması yapmayacağım,
+                # nedeni ise zaten atanmış durumda.
                 if is_local_client(client):
                     continue
 
-            # Senkronizasyon işini alt fonksiyona pasla
+                # Senkronizasyon işini alt fonksiyona pasla
                 sync_remote_client(
-                    remote_client=client, local_client=local_client, target_sim=first_sim
+                    remote_client=client,
+                    local_client=local_client,
+                    target_sim=first_sim,
                 )
             except Exception as e:
                 log.error(f"setup sim error: {e}")

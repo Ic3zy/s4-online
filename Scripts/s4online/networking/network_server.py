@@ -38,8 +38,7 @@ class NetworkServer:
             self.create_client_socket()
         else:
             self.create_server_socket()
-
-        self.listener = Listener(self)
+            self.listener = Listener(self)
 
     def process_clients(self):
         for client in self.clients.values():
@@ -57,18 +56,34 @@ class NetworkServer:
         self.clients[client._g_client.id] = client
 
     def send_auth(self, reconnect=False):
-        if self.peer is None:
-            log.error("Peer bağlı değil, auth gönderilemedi.")
-            return
-
         auth_payload = {
             "type": "auth",
             "account_name": self.account_name,
             "reconnect": reconnect,
         }
+
         data = rapid.dumps(auth_payload, default=str).encode("latin1")
 
-        self.peer.send(data)
+        # Host'a bağlanana ve auth paketi gerçekten gidene kadar bloklayarak
+        # dene; bağlantı yoksa 3 saniye arayla yeniden bağlan.
+        while True:
+            peer = self.peer
+
+            if peer is not None and peer.is_connected:
+                try:
+                    peer.send(data)
+                    break
+                except RuntimeError as e:
+                    log.error(f"Auth gönderilemedi: {e}. Yeniden bağlanılacak.")
+
+            time.sleep(3)
+
+            if self.peer is None or not self.peer.is_connected:
+                log.info("Host bağlantısı yok, 3 saniye sonra tekrar denenecek.")
+                self.create_client_socket()
+
+        self.listener = Listener(self)
+        log.info("Host bağlantısı kuruldu, auth gönderildi.")
 
     def create_client(self, g_client, account_name):
         n_client = Network_client(g_client, account_name)
@@ -145,8 +160,8 @@ class NetworkServer:
                 if message.get("account_name") is None:
                     message["account_name"] = self.account_name
 
-                if self.peer is None:
-                    log.warning("peer yok; veri gönderilemedi")
+                if self.peer is None or not self.peer.is_connected:
+                    log.warning("peer yok veya bağlı değil; veri gönderilemedi")
                     return
 
                 payload = rapid.dumps(message, default=str).encode("latin1")

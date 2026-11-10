@@ -25,7 +25,7 @@ class Network_client:
 
     def process(self):
         """Ağ thread'i tarafından çağrılır."""
-        if self.peer is None:
+        if self.peer is None or not self.peer.is_connected:
             return
 
         # Tek callda en fazla 1 paket gitmeli.

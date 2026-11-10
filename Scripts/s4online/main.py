@@ -141,6 +141,9 @@ def alive(_connection=None):
     clients_count = services.client_manager()._objects
     output(f"clients: {clients_count}")
 
+    cur_ac = services.account_service().get_current_account()
+    output(f"account: {cur_ac}")
+
 
 @Command("time_advence", command_type=CommandType.Live)
 def time_advence(hours: int, mint: int, _connection=None):

@@ -272,6 +272,8 @@ class DistributorNew:
             obj.visible_to_client = False
 
     def add_client(self, client, account_name=None, call_is_game=True):
+        # if client.id > 1000:
+        #     return
         if self.clients.get(client.id) is not None:
             log.info("Client zaten var")
             raise Exception("Client zaten var")
@@ -279,14 +281,8 @@ class DistributorNew:
         self.process()
 
         if account_name is None:
-            persona_name = None
-            if hasattr(client, "_account") and hasattr(
-                client._account, "_persona_name"
-            ):
-                persona_name = client._account._persona_name
-            if persona_name is None:
-                persona_name = "guest_" + random.randint(1, 90000)
-            account_name = persona_name
+            log.error(f"account name is none, id: {client.id}")
+            account_name = "guest_" + str(random.randint(1, 90000))
 
         client.account_name = account_name
         self.clients[client.id] = client

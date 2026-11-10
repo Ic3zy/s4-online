@@ -26,6 +26,7 @@ class Omega_host:
         if client_id < 10000:
             if self.local_client_id != client_id:
                 self.local_client_id = client_id
+
             _omega.send(client_id, msg_id, msg_bytes)
 
             if Ctx.get("game_load") or global_distributor:
@@ -54,7 +55,9 @@ class Omega_host:
                 "pattern": {"type": "omega", "time": time.time()},
                 "data": [chunk],
             }
+
             self.send_message(msg, client_id)
+
         except Exception as e:
             log.error(f"custom_omega error: {e}")
 

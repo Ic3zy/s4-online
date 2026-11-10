@@ -50,10 +50,10 @@ def create_clients_info():
     return clients_info
 
 
-def start_client():
+def start_client(force=False):
     log.info("Starting clients...")
     try:
-        if Ctx.get("custom_clients") is not None:
+        if Ctx.get("custom_clients") is not None and not force:
             return
 
         Ctx.custom_clients = True
@@ -64,10 +64,40 @@ def start_client():
         if len(clients_info) == 0:
             log.error("No clients to start")
             return
+
     except Exception as e:
         log.error(f"Error creating clients: {e}")
+
+
+# DEBUG
+def travelling_player_clients():
+    if not Ctx.get("client_manager_load"):
+        return log.debug(f"travelling processer error, client manager not loaded.")
+
+    if Ctx.get("is_travel"):
+        client_manager = services.client_manager()
+        objects = client_manager._objects
+
+        for client_id, client in list(objects.items()):
+            if client.id > 100000:
+                log.debug(f"Deleted client: {client.id}")
+                del objects[client_id]
+
+        Ctx["client_initialize_wait"] = True
+
+    elif Ctx.get("client_initialize_wait"):
+        log.debug("starting after travel clients")
+        start_client(force=True)
+        setup_sim()
+
+        Ctx["client_initialize_wait"] = False
+
+    else:
+        log.debug("pass client process")
 
 
 if not Config.is_client:
     Ctx.add_callback("client_manager_load", start_client)
     Ctx.add_callback("game_load", setup_sim)
+    # DEBUG
+    # Ctx.add_callback("is_travel", travelling_player_clients)
