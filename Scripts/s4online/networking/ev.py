@@ -16,6 +16,14 @@ class Ev:
 
         self.EV_MAP[event_type].append(func)
 
+    def off(self, pattern, func) -> None:
+        event_type = pattern.get("type")
+        funcs = self.EV_MAP.get(event_type)
+        if funcs is not None and func in funcs:
+            funcs.remove(func)
+            if not funcs:
+                self.EV_MAP.pop(event_type, None)
+
     def emit(self, event_type, message, output) -> bool:
         try:
             funcs = self.EV_MAP.get(event_type, ())
