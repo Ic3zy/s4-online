@@ -43,7 +43,6 @@ class Listener:
                 data, obj = self.listen_enet()
 
                 if data["type"] == "data":
-                    log.debug("veri geldi")
                     if obj.get("type") == "auth":
                         self.server.accept_thread(
                             data["peer"],
@@ -67,5 +66,10 @@ class Listener:
                 #         self.server.create_client_socket(re_connect=True)
                 #         continue
 
+            except RuntimeError as e:
+                # Rust event channel kapanışı kalıcıdır; döngüyü sürdürmek
+                # her turda hata loglayıp CPU tüketir.
+                log.error(f"Recv channel closed: {e}")
+                return
             except Exception as e:
                 log.error("Recv error:", e)

@@ -18,13 +18,9 @@ class Ev:
 
     def emit(self, event_type, message, output) -> bool:
         try:
-            funcs = self.EV_MAP.get(event_type, [])
-
-            log.info(f"Emit başlatılıyor.. funcs={funcs}")
+            funcs = self.EV_MAP.get(event_type, ())
 
             for func in funcs:
-                output("func bulundu çağırılacak.")
-
                 try:
                     func(message)
 

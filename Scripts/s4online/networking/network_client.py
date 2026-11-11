@@ -25,25 +25,19 @@ class Network_client:
 
     def process(self):
         """Ağ thread'i tarafından çağrılır."""
-        if self.peer is None or not self.peer.is_connected:
+        peer = self.peer
+        if peer is None or not peer.is_connected:
             return
 
-        # Tek callda en fazla 1 paket gitmeli.
+        # En fazla 20 sıradaki mesajı gönder.
         for _ in range(20):
             msg = self._queue.get_next()
             if msg is None:
                 return
             try:
                 msg["pattern"]["times"] = time.time()
-                if isinstance(msg, dict):
-                    payload = rapid.dumps(msg, default=str)
-                else:
-                    payload = str(msg)
-
-                data = payload
-                # ama peer koptuysa veya buffer doluysa exception atabilir.
-                self.peer.send(data.encode("latin1"))
-                # Buraya geldiysek gönderim başarılı (veya kuyruğa alındı)
+                payload = rapid.dumps(msg, default=str).encode("latin1")
+                peer.send(payload)
                 self._queue.confirm_success()
 
             except RuntimeError as e:
@@ -52,9 +46,7 @@ class Network_client:
                 return
 
             except Exception as e:
-                # Gönderim başarısız! confirm_success() ÇAĞRILMADI.
-                # Paket hala kuyruğun başında bekliyor.
                 log.error(
                     f"Gönderim hatası ({self.account_name}), paket saklanıyor: {e}"
                 )
-                return  # bir sonraki tick'te tekrar dene.
+                return

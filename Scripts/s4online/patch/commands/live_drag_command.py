@@ -305,36 +305,36 @@ def send_live_drag_end_message(
         _instance.send_message_all_clients(message)
 
 
-# DEBUG
-def inject(a: bool = True):
-    command_list = {
-        "live_drag.start": live_drag_start,
-        "live_drag.sell": live_drag_sell,
-        "live_drag.canceled": live_drag_canceled,
-        "live_drag.end": live_drag_end,
-    }
-    if a:
-        if not Config.is_client:
-            # _instance = network_server._network_instance
-            _instance = None
-            if _instance is not None:
-                _instance.ev.on({"type": "live_drag_end"}, live_drag_end_host_render)
-            for command_name in command_list:
-                command = command_list[command_name]
-                unregister(command_name)
-                Command(command_name, command_type=CommandType.Live)(command)
-        else:
-            unregister("live_drag.end")
-            Command("live_drag.end", command_type=CommandType.Live)(
-                client_live_drag_end
-            )
-    else:
-        if not Config.is_client:
-            for command_name in command_list:
-                command = command_list[command_name]
-                unregister(command_name)
-        else:
-            unregister("live_drag.end")
-            from server_commands.live_drag_commands import live_drag_end as lde
+# # DEBUG
+# def inject(a: bool = True):
+#     command_list = {
+#         "live_drag.start": live_drag_start,
+#         "live_drag.sell": live_drag_sell,
+#         "live_drag.canceled": live_drag_canceled,
+#         "live_drag.end": live_drag_end,
+#     }
+#     if a:
+#         if not Config.is_client:
+#             # _instance = network_server._network_instance
+#             _instance = None
+#             if _instance is not None:
+#                 _instance.ev.on({"type": "live_drag_end"}, live_drag_end_host_render)
+#             for command_name in command_list:
+#                 command = command_list[command_name]
+#                 unregister(command_name)
+#                 Command(command_name, command_type=CommandType.Live)(command)
+#         else:
+#             unregister("live_drag.end")
+#             Command("live_drag.end", command_type=CommandType.Live)(
+#                 client_live_drag_end
+#             )
+#     else:
+#         if not Config.is_client:
+#             for command_name in command_list:
+#                 command = command_list[command_name]
+#                 unregister(command_name)
+#         else:
+#             unregister("live_drag.end")
+#             from server_commands.live_drag_commands import live_drag_end as lde
 
-            Command("live_drag.end", command_type=CommandType.Live)(lde)
+#             Command("live_drag.end", command_type=CommandType.Live)(lde)
