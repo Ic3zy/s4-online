@@ -9,6 +9,7 @@ from .map_commands import (
 )
 import sims4.math, services
 from .do_command import Commander_instance
+from .host_context_pick_commands import hcp_hook
 
 log = Logger(__name__)
 
@@ -98,6 +99,16 @@ def inject(enet_Server, is_client):
         for command_name, command in HOST_REPLACEMENT_LIST.items():
             unregister(command_name)
             Command(command_name, command_type=CommandType.Live)(command)
+
+        for command_name, command in COMMAND_LIST.items():
+            if command_name in HOST_BLOCK or command_name in HOST_REPLACEMENT_LIST:
+                continue
+            try:
+                unregister(command_name)
+                wrapped_command = hcp_hook(command)
+                Command(command_name, command_type=CommandType.Live)(wrapped_command)
+            except Exception as e:
+                log.error(f"ERROR host inject :: {command_name} :: {e}")
 
         enet_Server.ev.on({"type": "live_drag_end"}, live_drag_end_host_render)
 

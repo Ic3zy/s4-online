@@ -27,6 +27,7 @@ import services
 from s4online.utils import Logger, Config
 from s4online.base import Ctx, UserPickContext
 from .journal_list import OpObject, S4OnlineProxyList
+from .owner_scoped_events import OWNER_SCOPED_EVENTS
 
 log = Logger(__name__)
 _send_index = 0
@@ -375,21 +376,17 @@ class DistributorNew:
         self.send_message_all_clients(MSG_OBJECTS_VIEW_UPDATE, view_update)
 
     def add_event(self, msg_id, msg, immediate=False):
-        # DEBUGGING
-        if Ctx.get("block_events"):
-            return
+        client_id = None
+        if msg_id in OWNER_SCOPED_EVENTS:
+            log.debug(f"add_event from owner scoped: {msg_id}")
+            client_id = UserPickContext.client_id
+            if client_id == "MainClient":
+                log.debug("main cliented add event.")
+                main_client = self.client
+                client_id = main_client.id if main_client is not None else None
 
-        client_id = UserPickContext.client_id
-        if client_id is None and False:
-            log.error(f"client_id is None, msg_id: {msg_id}, msg: {msg}")
-
-        if client_id is not None and client_id == "MainClient":
-            client_id = self.client.id
-
-        if Ctx.get("game_load") and False:
-            log.debug(
-                f"add_event : {msg_id} client_id: raw_c: {UserPickContext.client_id} mapped_c:{client_id} msg:{msg}"
-            )
+        else:
+            log.info(f"add_event: {msg_id}, {immediate}")
 
         self.events.append((msg_id, msg, client_id))
         if immediate:

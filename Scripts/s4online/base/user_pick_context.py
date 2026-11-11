@@ -7,11 +7,9 @@ class UserPickContextClass:
 
     @contextmanager
     def activate(self, client_id):
+        # Keep the last command owner available for later UI/distributor events.
         self.client_id = client_id
-        try:
-            yield
-        finally:
-            self.client_id = None
+        yield
 
 
 UserPickContext = UserPickContextClass()

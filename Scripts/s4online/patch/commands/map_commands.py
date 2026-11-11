@@ -132,7 +132,6 @@ COMMAND_LIST = {
 }
 # ---------- Replace Lists ----------
 HOST_REPLACEMENT_LIST = {
-    "interactions.select": hcp_select_choice_hook,
     "interactions.has_choices": custom_has_choices,
     "interactions.choices": custom_generate_choices,
     # "live_drag.start": custom_live_drag_start,
