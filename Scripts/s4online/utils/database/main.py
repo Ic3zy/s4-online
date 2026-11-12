@@ -40,6 +40,14 @@ class Config:
             return is_debug
 
     @property
+    def is_hcp_debug(self):
+        is_hcp_debug = self.db.get("is_hcp_debug")
+        if is_hcp_debug is None:
+            return False
+        else:
+            return is_hcp_debug
+
+    @property
     def player_count(self):
         return len(self.clients_info)
 

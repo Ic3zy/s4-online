@@ -3,23 +3,45 @@ import inspect
 
 from s4online.base import UserPickContext
 from s4online.utils import Logger
+from s4online.utils import Config
 from server_commands.interaction_commands import select_choice
 
 log = Logger(__name__)
+
+deactive_logs = {"has_choices"}
 
 
 def hcp_hook(org):
     """Wrap a host command with its caller's pick context."""
     original_signature = inspect.signature(org)
+    if Config.is_hcp_debug:
 
-    @functools.wraps(org)
-    def wrapped(*args, **kwargs):
-        bound = original_signature.bind_partial(*args, **kwargs)
-        client_id = bound.arguments.get("_connection")
-        if client_id is None:
-            client_id = "MainClient"
-        with UserPickContext.activate(client_id):
-            return org(*args, **kwargs)
+        @functools.wraps(org)
+        def wrapped(*args, **kwargs):
+            bound = original_signature.bind_partial(*args, **kwargs)
+            client_id = bound.arguments.get("_connection")
+            if client_id is None:
+                client_id = "MainClient"
+
+            if org.__name__ not in deactive_logs:
+                log.debug(
+                    f"HCP[{org.__name__}]: , clientid: {client_id}, args: {args}, kwargs: {kwargs}"
+                )
+
+            with UserPickContext.activate(client_id):
+                return org(*args, **kwargs)
+
+    else:
+
+        @functools.wraps(org)
+        def wrapped(*args, **kwargs):
+            bound = original_signature.bind_partial(*args, **kwargs)
+            client_id = bound.arguments.get("_connection")
+            if client_id is None:
+                client_id = "MainClient"
+
+            with UserPickContext.activate(client_id):
+                return org(*args, **kwargs)
 
     # Sims command parsing uses getfullargspec; expose the original typed args.
     wrapped.__signature__ = original_signature
