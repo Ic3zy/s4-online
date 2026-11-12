@@ -4,7 +4,7 @@ from graph_algos import topological_sort
 from gsi_handlers.distributor_handlers import archive_operation
 from sims4.callback_utils import consume_exceptions
 from distributor.system import get_current_tag_set, _current_tag_set, DEFAULT_MASK
-from distributor.ops import ShowSocialMediaPanel, SendUIMessage
+from distributor.ops import ShowSocialMediaPanel
 from server.client import Client
 import gsi_handlers, services, distributor.system, weakref, random
 from collections import namedtuple
@@ -28,6 +28,7 @@ from s4online.utils import Logger, Config
 from s4online.base import Ctx, UserPickContext
 from .journal_list import OpObject, S4OnlineProxyList
 from .owner_scoped_events import OWNER_SCOPED_EVENTS
+from .owner_scoped_ops import is_owner_scoped_op
 
 log = Logger(__name__)
 _send_index = 0
@@ -344,7 +345,14 @@ class DistributorNew:
                 if game_load:
                     return self.journal.add(main_client, op, client_id=obj.id)
 
-        self.journal.add(obj, op)
+        client_id = None
+        if UserPickContext.client_id is not None and is_owner_scoped_op(op):
+            client_id = UserPickContext.client_id
+            if client_id == "MainClient":
+                main_client = self.client
+                client_id = main_client.id if main_client is not None else None
+
+        self.journal.add(obj, op, client_id=client_id or "all")
 
     def add_op_with_no_owner(self, op):
         if isinstance(op, ShowSocialMediaPanel):
@@ -359,6 +367,17 @@ class DistributorNew:
 
             except Exception as e:
                 log.info(f"ShowSocialMediaPanel sim_id hata: {e}")
+
+        client_id = None
+        if UserPickContext.client_id is not None and is_owner_scoped_op(op):
+            client_id = UserPickContext.client_id
+            if client_id == "MainClient":
+                main_client = self.client
+                client_id = main_client.id if main_client is not None else None
+
+        if client_id is not None:
+            self.journal.add(None, op, client_id=client_id)
+            return
 
         self.journal.add(None, op)
 
