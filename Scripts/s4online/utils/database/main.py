@@ -32,13 +32,21 @@ class Config:
             return is_client
 
     @property
+    def is_debug(self):
+        is_debug = self.db.get("is_debug")
+        if is_debug is None:
+            return False
+        else:
+            return is_debug
+
+    @property
     def player_count(self):
         return len(self.clients_info)
-    
+
     @property
     def clients_info(self):
         return self.db.get("connected_clients_info") or list()
-    
+
     @property
     def db(self):
         return self.read_db(self.config_directory)

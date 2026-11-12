@@ -13,6 +13,10 @@ from s4online.core import (
 )
 from s4online.patch import inject, inject_time, uninject, uninject_time
 from s4online.patch.object_sync import inject_object_sync, uninject_object_sync
+from s4online.patch.stair_portal_guard import (
+    inject_stair_portal_guard,
+    uninject_stair_portal_guard,
+)
 from s4online.utils import Config, Logger, show_notification
 from sims4.commands import CheatOutput, Command, CommandType, unregister
 from s4online.utils import load_pyd
@@ -78,6 +82,8 @@ def inject_all(is_client, b) -> bool:
     # if b:
     #     inject_distributor(is_client)
     # inject_distributor(is_client)
+    # Ignore missing native stair data on clients only.
+    inject_stair_portal_guard(is_client)
     # host-authoritative object lifecycle and parent/location sync
     inject_object_sync(network_server, is_client)
     # commands inject
@@ -87,6 +93,7 @@ def inject_all(is_client, b) -> bool:
 
 
 def uninject_all():
+    uninject_stair_portal_guard()
     uninject_object_sync()
     uninject_time(is_client)
     # stop_loop()
@@ -438,3 +445,17 @@ def objtest(_connection=None):
 
         output("Object replacement failed. Check log.")
         log.error("Object replacement traceback:\n{}".format(error_traceback))
+
+
+@Command("logsc", command_type=CommandType.Live)
+def logsc(name: str, _connection=None):
+    output = CheatOutput(_connection)
+    try:
+
+        def logger(*a, **k):
+            output(f"{name}, args: [{a}], kwargs: [{k}]")
+
+        unregister(name)
+        Command(name, command_type=CommandType.live)(logger)
+    except Exception as e:
+        output(f"Error: {e}")
