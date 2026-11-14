@@ -46,10 +46,9 @@ from server_commands.career_commands import (
 from server_commands.inventory_commands import (
     purchase_picker_response,
     purchase_picker_response_by_ids,
-    inventory_view_update,
-    open_inventory_ui,
     sell_picker_response_by_ids,
     # create_and_add_object_to_inventory,
+    # inventory_view_update, open_inventory_ui: oyunun içsel çağrıları, ağ komutu değil
 )
 
 from server_commands.outfit_commands import (
@@ -127,12 +126,10 @@ COMMAND_LIST = {
     "careers.find_career": find_career,
     "careers.leave_work": leave_work,
     "careers.select": select_career,
-    # inventory
+    # inventory (client → host ağ komutları: picker response'lar)
     "inventory.purchase_picker_response_by_ids": purchase_picker_response_by_ids,
     "inventory.sell_picker_response_by_ids": sell_picker_response_by_ids,
     "inventory.purchase_picker_response": purchase_picker_response,
-    "inventory.view_update": inventory_view_update,
-    "inventory.open_ui": open_inventory_ui,
     # bucks
     "bucks.lock_all_perks_for_bucks_type": lock_all_perks_for_bucks_type,
     "bucks.unlock_multiple_perks": unlock_multiple_perks_with_buck_type,

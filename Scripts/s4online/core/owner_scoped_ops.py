@@ -6,7 +6,6 @@ from distributor.ops import (
     ShowSocialMediaPanel,
     AskAboutClubsDialog,
     CommunityBoardDialog,
-    SendUIMessage,
     ShowBillsPanel,
     ShowClubInfoUI,
     ShowHorseCompetitionResults,
@@ -23,7 +22,6 @@ _OWNER_SCOPED_OP_CLASSES = frozenset(
         LiveDragStart,
         AskAboutClubsDialog,
         CommunityBoardDialog,
-        SendUIMessage,
         ShowBillsPanel,
         ShowClubInfoUI,
         ShowHorseCompetitionResults,
@@ -40,7 +38,6 @@ _OWNER_SCOPED_OP_CLASSES = frozenset(
 _OWNER_SCOPED_GENERIC_OP_TYPES = frozenset(
     {
         DistributorOps_pb2.Operation.SELECT_CAREER_UI,
-        DistributorOps_pb2.Operation.UI_NOTIFICATION_SHOW,
         DistributorOps_pb2.Operation.SHOW_FAMILY_TREE,
         DistributorOps_pb2.Operation.SHOW_RENTAL_UNIT_MANAGEMENT,
         DistributorOps_pb2.Operation.SHOW_LIFETIME_MILESTONES_PANEL,

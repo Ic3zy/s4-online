@@ -4,7 +4,7 @@ from graph_algos import topological_sort
 from gsi_handlers.distributor_handlers import archive_operation
 from sims4.callback_utils import consume_exceptions
 from distributor.system import get_current_tag_set, _current_tag_set, DEFAULT_MASK
-from distributor.ops import ShowSocialMediaPanel
+from distributor.ops import GenericProtocolBufferOp, ShowSocialMediaPanel
 from server.client import Client
 import gsi_handlers, services, distributor.system, weakref, random
 from collections import namedtuple
@@ -355,6 +355,13 @@ class DistributorNew:
         self.journal.add(obj, op, client_id=client_id or "all")
 
     def add_op_with_no_owner(self, op):
+        is_inventory_op = (
+            isinstance(op, GenericProtocolBufferOp)
+            and op.type_constant in (
+                protocolbuffers.DistributorOps_pb2.Operation.OPEN_INVENTORY,
+                protocolbuffers.DistributorOps_pb2.Operation.OPEN_INVENTORY_WITH_FILTERS,
+            )
+        )
         if isinstance(op, ShowSocialMediaPanel):
             try:
                 sim_id = op.op.sim_id
@@ -375,11 +382,31 @@ class DistributorNew:
                 main_client = self.client
                 client_id = main_client.id if main_client is not None else None
 
+        if is_inventory_op:
+            if client_id is not None:
+                log.info(
+                    "inventory route: op_type={} recipient={} source=UserPickContext".format(
+                        op.type_constant, client_id
+                    )
+                )
+            else:
+                log.info(
+                    "inventory route: op_type={} no recipient; broadcasting".format(
+                        op.type_constant
+                    )
+                )
+
         if client_id is not None:
             self.journal.add(None, op, client_id=client_id)
             return
 
         self.journal.add(None, op)
+        if is_inventory_op:
+            log.info(
+                "inventory route: op_type={} journaled without client_id (broadcast)".format(
+                    op.type_constant
+                )
+            )
 
     def send_op_with_no_owner_immediate(self, op):
         global _send_index

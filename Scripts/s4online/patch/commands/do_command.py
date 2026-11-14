@@ -28,27 +28,24 @@ class Commander:
         self.live_drag_queue = []
 
     def _live_drag_command_gate(self, command_name, client_id, args, kwargs):
-        terminal_commands = ("live_drag.end", "live_drag.canceled", "live_drag.sell")
+        """Aktif live drag varken sadece drag sahibinin komutlarını geçir.
+
+        Diğer istemcilerden gelen komutlar sıraya alınır, drag bitince
+        tekrar oynatılır. Sahibin end/cancel/sell komutları her zaman geçer;
+        böylece bitiş komutu asla kuyrukta takılı kalmaz.
+        """
+        owner_id = UserPickContext.live_drag_owner_id
+        if owner_id is None or client_id == owner_id:
+            return False
+
         with self.lock:
-            owner_id = UserPickContext.live_drag_owner_id
-            object_id = UserPickContext.live_drag_object_id
-            if owner_id is None:
-                return False
-
-            if command_name in terminal_commands:
-                if client_id != owner_id:
-                    self.live_drag_queue.append((command_name, client_id, args, kwargs))
-                    return True
-                requested_id = args[0] if args else kwargs.get(
-                    "live_drag_object_id", kwargs.get("object_source_id")
-                )
-                if requested_id is not None and requested_id != object_id:
-                    log.warning(f"Ignoring mismatched live drag terminal command: {command_name}")
-                    return True
-                return False
-
             self.live_drag_queue.append((command_name, client_id, args, kwargs))
-            return True
+        log.debug(
+            "live drag: queued '{}' from client {} (owner {})".format(
+                command_name, client_id, owner_id
+            )
+        )
+        return True
 
     def _begin_live_drag(self, client_id, object_id):
         with self.lock:
@@ -93,7 +90,12 @@ class Commander:
         with self.lock:
             queued = self.live_drag_queue
             self.live_drag_queue = []
+        if not queued:
+            return
+        log.debug("live drag: flushing {} queued command(s)".format(len(queued)))
         for command_name, client_id, args, kwargs in queued:
+            # Kuyruktan gelen bir komut yeni drag başlatırsa, kalanları
+            # _do_command -> gate tekrar kuyruğa alır.
             self._do_command(command_name, client_id, *args, **kwargs)
 
     def _schedule_live_drag_completion_check(self, generation, delay=0):
@@ -233,7 +235,17 @@ class Commander:
             client_id = client.id
             args = data.get("args") or ()
             kwargs = data.get("kwargs") or {}
-            log.debug(f"do_command_from_network: {command_name} {args} {kwargs}")
+            log.debug(
+                "do_command_from_network: account_name={} resolved_client_id={} "
+                "resolved_account_name={} command={} args={} kwargs={}".format(
+                    account_name,
+                    client_id,
+                    getattr(client, "account_name", None),
+                    command_name,
+                    args,
+                    kwargs,
+                )
+            )
             self._do_command(command_name, client_id, *args, **kwargs)
         except Exception as e:
             log.error(f"do_command_from_network hata: {e}")
